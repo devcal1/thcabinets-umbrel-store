@@ -1,0 +1,27 @@
+manifestVersion: 1
+id: thcabinets-splash
+name: TH Cabinets
+tagline: Company landing page
+icon: https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/master/thcabinets-splash/icon.svg
+category: files
+version: "1.0.0"
+port: 4090
+description: >-
+  A landing page for TH Cabinets, currently showing the company logo.
+
+
+  More features will be added here over time.
+developer: TH Cabinets
+website: ""
+submitter: TH Cabinets
+submission: ""
+repo: ""
+support: ""
+gallery:
+  - https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/master/thcabinets-splash/icon.svg
+releaseNotes: >-
+  Initial release: splash page showing the company logo.
+dependencies: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""

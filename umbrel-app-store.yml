@@ -1,0 +1,2 @@
+id: "thcabinets" # Unique prefix for every app in this store. Only lowercase letters and dashes.
+name: "TH Cabinets" # Shown in the umbrelOS UI as "<name> App Store".
