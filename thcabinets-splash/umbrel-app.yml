@@ -1,16 +1,15 @@
 manifestVersion: 1
 id: thcabinets-splash
 name: TH Cabinets
-tagline: Company landing page
+tagline: Company landing page and job photo search
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.0.0"
+version: "1.1.0"
 port: 4090
 description: >-
-  A landing page for TH Cabinets, currently showing the company logo.
-
-
-  More features will be added here over time.
+  A landing page for TH Cabinets, with a showroom photo search tool for
+  browsing past job photos by keyword, and an admin page for uploading and
+  tagging new job photos.
 developer: TH Cabinets
 website: ""
 submitter: TH Cabinets
@@ -20,7 +19,9 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Initial release: splash page showing the company logo.
+  Added a job photo search page (/search.html) with live keyword search over
+  tagged job photos, and an admin page (/admin.html) for uploading and tagging
+  new photos.
 dependencies: []
 path: ""
 defaultUsername: ""

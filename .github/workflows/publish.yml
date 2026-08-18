@@ -1,0 +1,108 @@
+name: Build and publish thcabinets-web
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "thcabinets-splash/app/**"
+      - ".github/workflows/publish.yml"
+  workflow_dispatch: {}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/thcabinets-web
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build single-arch image for smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: thcabinets-splash/app
+          load: true
+          tags: thcabinets-web:smoke-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the built image
+        run: |
+          set -euo pipefail
+
+          docker run -d --name smoke-test -p 3000:3000 thcabinets-web:smoke-test
+          trap 'docker logs smoke-test || true; docker rm -f smoke-test || true' EXIT
+
+          echo "Waiting for the server to come up..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/healthz > /dev/null; then
+              echo "Server is up."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Server never came up." >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "GET /api/photos should start empty..."
+          body=$(curl -sf http://localhost:3000/api/photos)
+          [ "$body" = "[]" ] || { echo "Expected [], got: $body" >&2; exit 1; }
+
+          echo "Uploading a test photo..."
+          printf '%s' "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" | base64 -d > /tmp/test.png
+          upload_response=$(curl -sf -F "photos=@/tmp/test.png;type=image/png" -F "tags=ci-test" http://localhost:3000/api/photos)
+          echo "$upload_response"
+          photo_id=$(echo "$upload_response" | jq -r '.[0].id')
+          thumb_url=$(echo "$upload_response" | jq -r '.[0].thumbUrl')
+          width=$(echo "$upload_response" | jq -r '.[0].width')
+          [ "$photo_id" != "null" ] || { echo "No photo id in response" >&2; exit 1; }
+          [ "$thumb_url" != "null" ] && [ -n "$thumb_url" ] || { echo "No thumbUrl in response" >&2; exit 1; }
+          [ "$width" = "1" ] || { echo "Expected width 1, got $width" >&2; exit 1; }
+
+          echo "Confirming it shows up in the listing..."
+          curl -sf http://localhost:3000/api/photos | jq -e ".[] | select(.id == $photo_id)" > /dev/null
+
+          echo "Editing tags..."
+          curl -sf -X PATCH -H "Content-Type: application/json" -d '{"tags":"ci-test-edited"}' \
+            "http://localhost:3000/api/photos/$photo_id" | jq -e '.tags == "ci-test-edited"' > /dev/null
+
+          echo "Deleting..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/photos/$photo_id")
+          [ "$status" = "204" ] || { echo "Expected 204 on delete, got $status" >&2; exit 1; }
+
+          echo "Confirming it's gone..."
+          body=$(curl -sf http://localhost:3000/api/photos)
+          [ "$body" = "[]" ] || { echo "Expected [] after delete, got: $body" >&2; exit 1; }
+
+          echo "Smoke test passed."
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU (for arm64 build)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: thcabinets-splash/app
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
