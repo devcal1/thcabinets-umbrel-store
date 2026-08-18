@@ -17,28 +17,14 @@ thcabinets-splash/
     logo.png                   # your logo (already added, from logo_vert.bmp)
 ```
 
-## 1. Push this repo to GitHub
+## 1. Repo
 
-Umbrel adds community app stores by GitHub URL, so this needs to live in a repo
-Umbrel can reach (public, or private with a token — public is simplest).
-
-```bash
-git init
-git add .
-git commit -m "Initial TH Cabinets Umbrel app"
-git branch -M master
-git remote add origin https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git
-git push -u origin master
-```
-
-Then replace `YOUR_GITHUB_USERNAME/YOUR_REPO_NAME` in
-[thcabinets-splash/umbrel-app.yml](thcabinets-splash/umbrel-app.yml) (the `icon`
-and `gallery` fields point there) and push again.
+This is pushed to [github.com/devcal1/thcabinets-umbrel-store](https://github.com/devcal1/thcabinets-umbrel-store).
 
 ## 2. Install on Umbrel
 
 1. On your Umbrel, open the **App Store** → the "⋮" menu → **Community App Stores**.
-2. Add your repo's URL, e.g. `https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME`.
+2. Add: `https://github.com/devcal1/thcabinets-umbrel-store`.
 3. The "TH Cabinets" store will appear; open it and install the **TH Cabinets** app.
 4. Once installed, it shows up on your Umbrel dashboard like any other app —
    click its icon to open the splash page in your browser.

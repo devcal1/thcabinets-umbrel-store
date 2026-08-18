@@ -2,7 +2,7 @@ manifestVersion: 1
 id: thcabinets-splash
 name: TH Cabinets
 tagline: Company landing page
-icon: https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/master/thcabinets-splash/icon.svg
+icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
 version: "1.0.0"
 port: 4090
@@ -15,10 +15,10 @@ developer: TH Cabinets
 website: ""
 submitter: TH Cabinets
 submission: ""
-repo: ""
-support: ""
+repo: https://github.com/devcal1/thcabinets-umbrel-store
+support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
-  - https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/master/thcabinets-splash/icon.svg
+  - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
   Initial release: splash page showing the company logo.
 dependencies: []
