@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page and job photo search
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.1.0"
+version: "1.3.0"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -19,9 +19,12 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Added a job photo search page (/search.html) with live keyword search over
-  tagged job photos, and an admin page (/admin.html) for uploading and tagging
-  new photos.
+  Admin page additions: bulk import of photos from a folder of category
+  subfolders (with a review step before anything uploads), an "add a tag"
+  control that appends without retyping existing tags, thumbnail previews of
+  selected photos before upload, and an optional "suggest tags from photos"
+  button powered by Gemini's free tier (opt-in, off by default until a free
+  API key is configured).
 dependencies: []
 path: ""
 defaultUsername: ""
