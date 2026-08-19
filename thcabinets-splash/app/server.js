@@ -12,7 +12,7 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 const CONFIG_DIR = process.env.CONFIG_DIR || path.join(__dirname, "config");
 fs.mkdirSync(CONFIG_DIR, { recursive: true });
 const GEMINI_KEY_FILE = path.join(CONFIG_DIR, "gemini-api-key");
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 function getGeminiApiKey() {
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();
@@ -152,8 +152,9 @@ app.post("/api/photos", (req, res) => {
     );
 
     const created = [];
-    try {
-      for (const file of files) {
+    const failed = [];
+    for (const file of files) {
+      try {
         const image = sharp(file.path);
         const metadata = await image.metadata();
         const thumbFilename = `${path.parse(file.filename).name}-thumb.webp`;
@@ -170,11 +171,13 @@ app.post("/api/photos", (req, res) => {
           tags
         );
         created.push(rowToPhoto(db.prepare("SELECT * FROM photos WHERE id = ?").get(info.lastInsertRowid)));
+      } catch (e) {
+        console.error(`Failed to process ${file.originalname}:`, e);
+        failed.push({ filename: file.originalname, error: e.message });
+        fs.rm(file.path, { force: true }, () => {});
       }
-      res.status(201).json(created);
-    } catch (e) {
-      res.status(500).json({ error: "Failed to process uploaded image(s)" });
     }
+    res.status(created.length > 0 ? 201 : 500).json({ created, failed });
   });
 });
 

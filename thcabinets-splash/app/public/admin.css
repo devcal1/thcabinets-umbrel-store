@@ -120,8 +120,8 @@ h1 { font-size: 25px; font-weight: 500; margin: 0 0 4px; }
 }
 .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
 .table img {
-  width: 64px;
-  height: 64px;
+  width: 160px;
+  height: 160px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   display: block;

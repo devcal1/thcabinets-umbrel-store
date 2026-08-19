@@ -190,11 +190,18 @@
     setStatus(`Uploading ${filesInput.files.length} photo(s)…`);
     try {
       const res = await fetch("/api/photos", { method: "POST", body: formData });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok && !body.created) {
         throw new Error(body.error || "Upload failed");
       }
-      setStatus("Upload complete.", "ok");
+      const created = body.created || [];
+      const failed = body.failed || [];
+      if (failed.length === 0) {
+        setStatus("Upload complete.", "ok");
+      } else {
+        const detail = failed.map((f) => `${f.filename} (${f.error})`).join("; ");
+        setStatus(`Uploaded ${created.length} of ${created.length + failed.length} — failed: ${detail}`, "error");
+      }
       form.reset();
       clearFilePreview();
       clearSuggestions();
@@ -400,7 +407,7 @@
     bulkImportBtn.disabled = true;
     bulkCancelBtn.disabled = true;
     let done = 0;
-    let failedFolders = [];
+    const problems = []; // per-folder summary strings for anything that wasn't a clean full success
 
     for (const group of selected) {
       done += 1;
@@ -411,22 +418,31 @@
 
       try {
         const res = await fetch("/api/photos", { method: "POST", body: formData });
-        if (!res.ok) throw new Error();
-      } catch {
-        failedFolders.push(group.folder);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok && !body.created) {
+          problems.push(`${group.folder}: ${body.error || "request failed"}`);
+          continue;
+        }
+        const failed = body.failed || [];
+        if (failed.length > 0) {
+          const detail = failed.map((f) => `${f.filename} (${f.error})`).join("; ");
+          problems.push(`${group.folder}: ${failed.length} of ${group.files.length} failed — ${detail}`);
+        }
+      } catch (e) {
+        problems.push(`${group.folder}: ${e.message || "network error"}`);
       }
     }
 
     bulkImportBtn.disabled = false;
     bulkCancelBtn.disabled = false;
 
-    if (failedFolders.length === 0) {
+    if (problems.length === 0) {
       setBulkStatus(`Imported ${selected.length} folder(s) successfully.`, "ok");
       bulkFolderInput.value = "";
       bulkGroups = [];
       bulkReview.style.display = "none";
     } else {
-      setBulkStatus(`Done, but these folders failed: ${failedFolders.join(", ")}. Try importing them again.`, "error");
+      setBulkStatus(`Finished with issues — ${problems.join(" | ")}`, "error");
     }
 
     await loadPhotos();
