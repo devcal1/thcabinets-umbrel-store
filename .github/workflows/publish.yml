@@ -61,9 +61,11 @@ jobs:
           printf '%s' "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" | base64 -d > /tmp/test.png
           upload_response=$(curl -sf -F "photos=@/tmp/test.png;type=image/png" -F "tags=ci-test" http://localhost:3000/api/photos)
           echo "$upload_response"
-          photo_id=$(echo "$upload_response" | jq -r '.[0].id')
-          thumb_url=$(echo "$upload_response" | jq -r '.[0].thumbUrl')
-          width=$(echo "$upload_response" | jq -r '.[0].width')
+          failed_count=$(echo "$upload_response" | jq -r '.failed | length')
+          [ "$failed_count" = "0" ] || { echo "Expected no failed uploads, got: $upload_response" >&2; exit 1; }
+          photo_id=$(echo "$upload_response" | jq -r '.created[0].id')
+          thumb_url=$(echo "$upload_response" | jq -r '.created[0].thumbUrl')
+          width=$(echo "$upload_response" | jq -r '.created[0].width')
           [ "$photo_id" != "null" ] || { echo "No photo id in response" >&2; exit 1; }
           [ "$thumb_url" != "null" ] && [ -n "$thumb_url" ] || { echo "No thumbUrl in response" >&2; exit 1; }
           [ "$width" = "1" ] || { echo "Expected width 1, got $width" >&2; exit 1; }
