@@ -79,15 +79,29 @@ install/update.
 ## Using it
 
 - **`/search.html`** — customer/showroom-facing. Type a keyword, live fuzzy
-  search over photo tags, click a photo to see it larger.
-- **`/admin.html`** — staff-facing. Upload one or more photos with a shared
-  set of comma-separated tags, or edit/delete existing photos in the table
-  below. **Not linked from any public page** — bookmark the URL. There's no
-  login on it yet (a deliberate, revisitable choice, not an oversight) — if
-  that stops being okay, the multi-user login approach already scoped for
-  this app (Node + `better-sqlite3` + `bcrypt` + `express-session`) slots in
-  as middleware in front of the admin routes without needing to re-architect
-  anything.
+  search over photo tags, click a photo to see it larger. Deliberately
+  read-only and chrome-free (no edit controls), per the original design brief.
+- **`/admin.html`** — staff-facing. **Not linked from any public page** —
+  bookmark the URL. There's no login on it yet (a deliberate, revisitable
+  choice, not an oversight) — if that stops being okay, the multi-user login
+  approach already scoped for this app (Node + `better-sqlite3` + `bcrypt` +
+  `express-session`) slots in as middleware in front of the admin routes
+  without needing to re-architect anything. It has three parts:
+  - **Upload** — pick one or more photos (shows thumbnail previews of what
+    you selected so you can see them while typing tags) and one shared,
+    comma-separated tag string applied to the whole batch.
+  - **Bulk import from a folder** — pick a folder containing one subfolder
+    per category (matching how job photos are actually organized on disk,
+    e.g. `Hamptons Kitchen/`, `Laundry/`). Each subfolder is auto-detected as
+    a tag group (folder name → tag, lowercased) with a review step — tick
+    which folders to import, edit any tag text, before anything uploads.
+    Unsupported files (videos, etc.) and anything over the size limit are
+    skipped with a reason shown. Reusable for every future finished job, not
+    just a one-off import.
+  - **Manage** — the table below lists every uploaded photo. The tags field
+    replaces the whole tag string on edit; the small "add a tag" box next to
+    it appends one or more tags without touching what's already there
+    (skips exact duplicates, case-insensitive).
 
 ## Updating the logo
 

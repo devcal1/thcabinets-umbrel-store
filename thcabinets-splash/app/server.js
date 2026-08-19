@@ -16,7 +16,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/photos", express.static(UPLOADS_DIR, { maxAge: "30d", immutable: true }));
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const THUMB_WIDTH = 700;
 
 const upload = multer({
@@ -57,7 +57,7 @@ app.get("/api/photos", (req, res) => {
 });
 
 app.post("/api/photos", (req, res) => {
-  upload.array("photos", 50)(req, res, async (err) => {
+  upload.array("photos", 100)(req, res, async (err) => {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
