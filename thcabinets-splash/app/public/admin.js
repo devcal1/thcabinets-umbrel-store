@@ -246,7 +246,8 @@
     }
 
     if (suggested.size === 0) {
-      setStatus("Couldn't get any suggestions — try tagging manually.", "error");
+      const firstError = results.find((r) => r.status === "rejected")?.reason?.message;
+      setStatus(firstError || "Couldn't get any suggestions — try tagging manually.", "error");
       return;
     }
 
