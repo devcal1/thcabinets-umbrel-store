@@ -17,10 +17,12 @@
           <label for="files">Photos</label>
           <input class="input" type="file" id="files" name="photos" accept="image/jpeg,image/png,image/webp" multiple required>
           <div class="file-preview" id="file-preview"></div>
+          <button class="btn btn-secondary" type="button" id="suggest-tags-btn" style="margin-top:8px">Suggest tags from photos</button>
         </div>
         <div class="field" style="flex:2">
           <label for="tags">Tags (comma-separated, applied to all selected photos)</label>
           <input class="input" type="text" id="tags" name="tags" placeholder="kitchen, farmhouse, oak, matte black hardware">
+          <div class="tag-chips" id="suggest-chips"></div>
         </div>
         <button class="btn btn-primary" type="submit" id="upload-btn">Upload</button>
       </div>

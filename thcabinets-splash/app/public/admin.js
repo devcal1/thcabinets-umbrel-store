@@ -6,6 +6,8 @@
   const statusEl = document.getElementById("upload-status");
   const tbody = document.getElementById("photo-tbody");
   const filePreview = document.getElementById("file-preview");
+  const suggestBtn = document.getElementById("suggest-tags-btn");
+  const suggestChips = document.getElementById("suggest-chips");
 
   let previewUrls = [];
 
@@ -15,8 +17,13 @@
     filePreview.innerHTML = "";
   }
 
+  function clearSuggestions() {
+    suggestChips.innerHTML = "";
+  }
+
   filesInput.addEventListener("change", () => {
     clearFilePreview();
+    clearSuggestions();
     for (const file of filesInput.files) {
       const url = URL.createObjectURL(file);
       previewUrls.push(url);
@@ -39,6 +46,18 @@
 
   function splitTags(value) {
     return value.split(",").map((t) => t.trim()).filter(Boolean);
+  }
+
+  function withAppendedTags(existingValue, tagsToAdd) {
+    const existing = splitTags(existingValue);
+    const existingLower = new Set(existing.map((t) => t.toLowerCase()));
+    for (const t of tagsToAdd) {
+      if (!existingLower.has(t.toLowerCase())) {
+        existing.push(t);
+        existingLower.add(t.toLowerCase());
+      }
+    }
+    return existing.join(", ");
   }
 
   async function saveTags(photoId, value) {
@@ -85,15 +104,7 @@
     const appendTag = async () => {
       const newTags = splitTags(addTagInput.value);
       if (newTags.length === 0) return;
-      const existing = splitTags(tagsField.value);
-      const existingLower = new Set(existing.map((t) => t.toLowerCase()));
-      for (const t of newTags) {
-        if (!existingLower.has(t.toLowerCase())) {
-          existing.push(t);
-          existingLower.add(t.toLowerCase());
-        }
-      }
-      const combined = existing.join(", ");
+      const combined = withAppendedTags(tagsField.value, newTags);
       addTagBtn.disabled = true;
       try {
         await saveTags(photo.id, combined);
@@ -186,11 +197,70 @@
       setStatus("Upload complete.", "ok");
       form.reset();
       clearFilePreview();
+      clearSuggestions();
       await loadPhotos();
     } catch (err) {
       setStatus(err.message || "Upload failed.", "error");
     } finally {
       uploadBtn.disabled = false;
+    }
+  });
+
+  async function suggestTagsForFile(file) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    const res = await fetch("/api/suggest-tags", { method: "POST", body: formData });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(body.error || "Failed to get suggestions");
+      err.code = body.code;
+      throw err;
+    }
+    return body.tags || [];
+  }
+
+  suggestBtn.addEventListener("click", async () => {
+    if (!filesInput.files.length) {
+      setStatus("Choose photos first, then suggest tags.", "error");
+      return;
+    }
+
+    suggestBtn.disabled = true;
+    clearSuggestions();
+    setStatus(`Looking at ${filesInput.files.length} photo(s)…`);
+
+    const results = await Promise.allSettled([...filesInput.files].map(suggestTagsForFile));
+    suggestBtn.disabled = false;
+
+    const notConfigured = results.some((r) => r.status === "rejected" && r.reason?.code === "NOT_CONFIGURED");
+    if (notConfigured) {
+      setStatus("Tag suggestions aren't set up yet — see the README for how to add a free Gemini API key.", "error");
+      return;
+    }
+
+    const suggested = new Set();
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        for (const tag of r.value) suggested.add(tag);
+      }
+    }
+
+    if (suggested.size === 0) {
+      setStatus("Couldn't get any suggestions — try tagging manually.", "error");
+      return;
+    }
+
+    setStatus("");
+    for (const tag of suggested) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "tag-chip";
+      chip.textContent = tag;
+      chip.addEventListener("click", () => {
+        tagsInput.value = withAppendedTags(tagsInput.value, [tag]);
+        chip.remove();
+      });
+      suggestChips.appendChild(chip);
     }
   });
 

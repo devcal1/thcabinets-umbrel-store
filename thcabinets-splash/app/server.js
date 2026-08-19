@@ -4,9 +4,24 @@ const crypto = require("crypto");
 const express = require("express");
 const multer = require("multer");
 const sharp = require("sharp");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, "uploads");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const CONFIG_DIR = process.env.CONFIG_DIR || path.join(__dirname, "config");
+fs.mkdirSync(CONFIG_DIR, { recursive: true });
+const GEMINI_KEY_FILE = path.join(CONFIG_DIR, "gemini-api-key");
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+
+function getGeminiApiKey() {
+  if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();
+  try {
+    return fs.readFileSync(GEMINI_KEY_FILE, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
 
 const db = require("./db");
 
@@ -36,6 +51,48 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+const suggestUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_BYTES },
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_MIME.has(file.mimetype)) {
+      cb(new Error("Unsupported file type"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const TAG_SUGGESTION_PROMPT = `You are helping tag photos of custom kitchen and joinery work for a
+searchable photo library at a cabinet-making showroom. Look at this photo and suggest 3-6 short,
+lowercase tags describing what's shown: the room type (e.g. kitchen, laundry, pantry, walk-in robe,
+bathroom vanity, study), the style (e.g. farmhouse, modern, shaker, hamptons, industrial,
+scandinavian), and visible materials or finishes (e.g. oak, matte black, stone, white, walnut,
+two-tone). Only include tags you can actually see evidence for. Respond with ONLY a comma-separated
+list of tags and nothing else — no numbering, no explanation.`;
+
+async function suggestTagsForImage(buffer, mimeType) {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    const err = new Error("Tag suggestions aren't configured yet.");
+    err.code = "NOT_CONFIGURED";
+    throw err;
+  }
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+  const result = await model.generateContent([
+    TAG_SUGGESTION_PROMPT,
+    { inlineData: { data: buffer.toString("base64"), mimeType } },
+  ]);
+  const text = result.response.text();
+  return [...new Set(
+    text
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+  )].slice(0, 8);
+}
 
 function rowToPhoto(row) {
   return {
@@ -96,6 +153,29 @@ app.post("/api/photos", (req, res) => {
       res.status(201).json(created);
     } catch (e) {
       res.status(500).json({ error: "Failed to process uploaded image(s)" });
+    }
+  });
+});
+
+app.post("/api/suggest-tags", (req, res) => {
+  suggestUpload.single("photo")(req, res, async (err) => {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "No photo uploaded" });
+      return;
+    }
+    try {
+      const tags = await suggestTagsForImage(req.file.buffer, req.file.mimetype);
+      res.json({ tags });
+    } catch (e) {
+      if (e.code === "NOT_CONFIGURED") {
+        res.status(501).json({ error: e.message, code: e.code });
+        return;
+      }
+      res.status(502).json({ error: "Couldn't get tag suggestions right now." });
     }
   });
 });
