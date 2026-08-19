@@ -120,8 +120,8 @@ h1 { font-size: 25px; font-weight: 500; margin: 0 0 4px; }
 }
 .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
 .table img {
-  width: 160px;
-  height: 160px;
+  width: 192px;
+  height: 192px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   display: block;
@@ -160,6 +160,13 @@ h1 { font-size: 25px; font-weight: 500; margin: 0 0 4px; }
   min-height: 28px;
   padding: 0 12px;
   font-size: 14px;
+}
+
+.row-suggest-btn {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  margin-top: 6px;
 }
 
 .tag-chips {

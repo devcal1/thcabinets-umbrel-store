@@ -107,7 +107,10 @@ install/update.
   - **Manage** — the table below lists every uploaded photo. The tags field
     replaces the whole tag string on edit; the small "add a tag" box next to
     it appends one or more tags without touching what's already there
-    (skips exact duplicates, case-insensitive).
+    (skips exact duplicates, case-insensitive). Each row also has its own
+    **Suggest tags** button — same Gemini flow as the upload form, but for a
+    photo that's already been uploaded, so you can go back and fill in tags
+    on older photos without re-uploading them.
 
 ## AI tag suggestions (optional)
 

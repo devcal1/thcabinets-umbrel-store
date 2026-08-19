@@ -69,6 +69,33 @@
     if (!res.ok) throw new Error();
   }
 
+  async function suggestTagsForFile(file) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    const res = await fetch("/api/suggest-tags", { method: "POST", body: formData });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(body.error || "Failed to get suggestions");
+      err.code = body.code;
+      throw err;
+    }
+    return body.tags || [];
+  }
+
+  async function fetchPhotoAsFile(photo) {
+    const res = await fetch(photo.url);
+    if (!res.ok) throw new Error("Couldn't load the photo");
+    const blob = await res.blob();
+    return new File([blob], "photo", { type: blob.type || "image/jpeg" });
+  }
+
+  function suggestionErrorMessage(err) {
+    if (err.code === "NOT_CONFIGURED") {
+      return "Tag suggestions aren't set up yet — see the README for how to add a free Gemini API key.";
+    }
+    return err.message || "Couldn't get suggestions for this photo.";
+  }
+
   function renderRow(photo) {
     const tr = document.createElement("tr");
 
@@ -126,6 +153,53 @@
     addTagRow.appendChild(addTagInput);
     addTagRow.appendChild(addTagBtn);
     tagsTd.appendChild(addTagRow);
+
+    const rowSuggestBtn = document.createElement("button");
+    rowSuggestBtn.type = "button";
+    rowSuggestBtn.className = "btn btn-secondary row-suggest-btn";
+    rowSuggestBtn.textContent = "Suggest tags";
+
+    const rowChips = document.createElement("div");
+    rowChips.className = "tag-chips";
+
+    rowSuggestBtn.addEventListener("click", async () => {
+      rowSuggestBtn.disabled = true;
+      rowChips.innerHTML = "";
+      const originalLabel = rowSuggestBtn.textContent;
+      rowSuggestBtn.textContent = "Suggesting…";
+      try {
+        const file = await fetchPhotoAsFile(photo);
+        const tags = await suggestTagsForFile(file);
+        if (tags.length === 0) {
+          setStatus("No suggestions for this photo.", "error");
+        }
+        for (const tag of tags) {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "tag-chip";
+          chip.textContent = tag;
+          chip.addEventListener("click", async () => {
+            const combined = withAppendedTags(tagsField.value, [tag]);
+            try {
+              await saveTags(photo.id, combined);
+              tagsField.value = combined;
+              chip.remove();
+            } catch {
+              setStatus("Failed to add tag.", "error");
+            }
+          });
+          rowChips.appendChild(chip);
+        }
+      } catch (err) {
+        setStatus(suggestionErrorMessage(err), "error");
+      } finally {
+        rowSuggestBtn.disabled = false;
+        rowSuggestBtn.textContent = originalLabel;
+      }
+    });
+
+    tagsTd.appendChild(rowSuggestBtn);
+    tagsTd.appendChild(rowChips);
 
     tr.appendChild(tagsTd);
 
@@ -212,19 +286,6 @@
       uploadBtn.disabled = false;
     }
   });
-
-  async function suggestTagsForFile(file) {
-    const formData = new FormData();
-    formData.append("photo", file);
-    const res = await fetch("/api/suggest-tags", { method: "POST", body: formData });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(body.error || "Failed to get suggestions");
-      err.code = body.code;
-      throw err;
-    }
-    return body.tags || [];
-  }
 
   suggestBtn.addEventListener("click", async () => {
     if (!filesInput.files.length) {
