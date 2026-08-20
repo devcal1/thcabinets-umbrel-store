@@ -26,8 +26,12 @@ Python/Node on PATH).
   constants — trivial to extend to midnight later).
 - Task palette (top bar): click a task to arm it as the active "pen", then
   click-drag on any day column to paint a block in that colour.
-- **Move** a block: drag its middle.
+- **Move** a block: drag its middle — including across to a different day
+  column, not just up/down within the same day.
 - **Resize** a block: drag its top or bottom edge.
+- **Copy Week A → Week B**: one click replaces every Week B block with a
+  copy of the matching Week A day (handy since fortnights are usually near-
+  identical, with a few days tweaked).
 - **Delete** a block: hover it and click the × in the corner, or select it
   (click) and press Delete/Backspace.
 - Blocks can't overlap another block in the same day column — drags/resizes/
@@ -48,10 +52,8 @@ change — no server, no account, nothing to configure.
 - Single browser only (localStorage). A small backend (JSON file or SQLite,
   similar to `thcabinets-splash/app`) would let the schedule be reached from
   multiple devices.
-- No cross-day dragging yet (a block can be moved up/down within its day, not
-  dragged to a different day) — straightforward to add if useful.
-- No "duplicate Week A → Week B" or day-to-day copy helper yet — currently
-  everything is painted by hand per column.
+- No undo — deletes and the "Copy Week A → B" overwrite are immediate (the
+  copy button does confirm first). Export JSON periodically as a backup.
 - No print/PNG export matching the original PDF mockup's layout — could be
   added with a print stylesheet or a canvas-based export.
 - Touch support is untested (pointer events are used throughout, which should

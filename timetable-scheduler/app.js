@@ -346,14 +346,20 @@
     const col = getColumnEl(block.day);
     const rect = col.getBoundingClientRect();
     const mode = role === "resize-top" ? "resize-top" : role === "resize-bottom" ? "resize-bottom" : "move";
-    const anchorSlot = mode === "resize-top" ? block.end : mode === "resize-bottom" ? block.start : block.start;
-    const [lo, hi] = getFreeRange(block.day, anchorSlot, blockId);
 
     dragState = {
-      mode, el, block, rect, lo, hi,
-      origStart: block.start, origEnd: block.end,
+      mode, el, block, rect,
+      origDay: block.day, origStart: block.start, origEnd: block.end,
+      grabOffsetY: e.clientY - rect.top - block.start * ROW_H,
       startY: e.clientY, moved: false,
     };
+
+    if (mode !== "move") {
+      const anchorSlot = mode === "resize-top" ? block.end : block.start;
+      const [lo, hi] = getFreeRange(block.day, anchorSlot, blockId);
+      dragState.lo = lo;
+      dragState.hi = hi;
+    }
 
     el.setPointerCapture(e.pointerId);
     el.style.cursor = mode === "move" ? "grabbing" : "ns-resize";
@@ -364,25 +370,51 @@
 
   function onBlockPointerMove(e) {
     if (!dragState || dragState.mode === "create") return;
-    const { mode, block, rect, lo, hi, origStart, origEnd, startY } = dragState;
+    const { mode, block, origStart, origEnd, startY } = dragState;
     const deltaSlots = Math.round((e.clientY - startY) / ROW_H);
     if (deltaSlots !== 0) dragState.moved = true;
 
     if (mode === "move") {
-      const length = origEnd - origStart;
-      let newStart = clamp(origStart + deltaSlots, lo, hi - length);
-      block.start = newStart;
-      block.end = newStart + length;
+      moveBlockToPointer(e);
     } else if (mode === "resize-top") {
+      const { lo, hi } = dragState;
       let newStart = clamp(origStart + deltaSlots, lo, origEnd - 1);
       block.start = newStart;
     } else if (mode === "resize-bottom") {
+      const { lo, hi } = dragState;
       let newEnd = clamp(origEnd + deltaSlots, origStart + 1, hi);
       block.end = newEnd;
     }
     positionBlockEl(dragState.el, block);
     const timeEl = dragState.el.querySelector(".block-time");
     if (timeEl) timeEl.textContent = `${slotToLabel(block.start)} – ${slotToLabel(block.end)}`;
+  }
+
+  // Cross-day move: figure out which day column the pointer is currently over
+  // (ignoring the dragged block itself) and reposition/re-parent accordingly.
+  function moveBlockToPointer(e) {
+    const { block, el, grabOffsetY, origStart, origEnd } = dragState;
+    const length = origEnd - origStart;
+
+    el.style.pointerEvents = "none";
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    el.style.pointerEvents = "";
+    const targetCol = under && under.closest(".day-col");
+    const targetDayId = targetCol ? targetCol.dataset.day : block.day;
+    const col = getColumnEl(targetDayId);
+    const rect = col.getBoundingClientRect();
+
+    const rawStart = Math.round((e.clientY - rect.top - grabOffsetY) / ROW_H);
+    const anchor = clamp(rawStart, 0, SLOT_COUNT - 1);
+    const [lo, hi] = getFreeRange(targetDayId, anchor, block.id);
+    const newStart = clamp(rawStart, lo, Math.max(lo, hi - length));
+
+    if (targetDayId !== block.day) {
+      block.day = targetDayId;
+      col.appendChild(el);
+    }
+    block.start = newStart;
+    block.end = newStart + length;
   }
 
   function onBlockPointerUp(e) {
@@ -424,6 +456,23 @@
       hintText.style.color = "";
     }, 2500);
   }
+
+  // ---- Copy Week A -> Week B -----------------------------------------------
+  document.getElementById("btn-copy-week").addEventListener("click", () => {
+    const weekBHasBlocks = state.blocks.some(b => b.day.endsWith("B"));
+    const msg = weekBHasBlocks
+      ? "This replaces every Week B block with a copy of the matching Week A day. Continue?"
+      : "Copy every Week A block into Week B?";
+    if (!confirm(msg)) return;
+    state.blocks = state.blocks.filter(b => !b.day.endsWith("B"));
+    const toAdd = state.blocks
+      .filter(b => b.day.endsWith("A"))
+      .map(b => ({ id: uid("b"), day: b.day.replace("A", "B"), start: b.start, end: b.end, taskId: b.taskId }));
+    state.blocks = state.blocks.concat(toAdd);
+    selectedBlockId = null;
+    saveState();
+    renderBlocks();
+  });
 
   // ---- Export / Import / Clear --------------------------------------------
   document.getElementById("btn-export").addEventListener("click", () => {
