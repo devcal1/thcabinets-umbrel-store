@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TH Cabinets — Fortnightly Schedule</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-title">
+      <h1>TH&nbsp;CABINETS</h1>
+      <p>Fortnightly Schedule Builder</p>
+    </div>
+    <div class="app-header-actions">
+      <button id="btn-export" class="btn btn-ghost">Export JSON</button>
+      <button id="btn-import" class="btn btn-ghost">Import JSON</button>
+      <input type="file" id="file-import" accept="application/json" hidden />
+      <button id="btn-clear" class="btn btn-danger-ghost">Clear All</button>
+    </div>
+  </header>
+
+  <section class="palette-bar">
+    <div class="palette-label">Tasks — click to select, then drag on the grid</div>
+    <div id="palette" class="palette"></div>
+    <button id="btn-add-task" class="btn btn-add">+ Add Task</button>
+  </section>
+
+  <div id="task-form" class="task-form hidden">
+    <input id="task-form-name" type="text" placeholder="Task name" maxlength="40" />
+    <input id="task-form-color" type="color" value="#3b6ea5" />
+    <button id="task-form-save" class="btn btn-add">Save</button>
+    <button id="task-form-cancel" class="btn btn-ghost">Cancel</button>
+    <button id="task-form-delete" class="btn btn-danger-ghost hidden">Delete task</button>
+  </div>
+
+  <p class="hint" id="hint-text">Select a task above, then click-drag on the grid to block out time. Drag a block's middle to move it, its top/bottom edge to resize, or hover it and hit the × to remove it.</p>
+
+  <div class="schedule-viewport" id="schedule-viewport">
+    <div class="schedule-inner" id="schedule-inner"></div>
+  </div>
+
+  <footer class="app-footer">
+    <span>5:00am – 10:00pm · 30-minute slots · saved automatically to this browser</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
