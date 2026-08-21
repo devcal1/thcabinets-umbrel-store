@@ -474,6 +474,164 @@
     renderBlocks();
   });
 
+  // ---- Export to JPG (drawn from state, not a DOM screenshot) -------------
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function clipText(ctx, text, x, y, maxWidth) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y - 2, maxWidth, 16);
+    ctx.clip();
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function buildScheduleCanvas() {
+    const scale = 2;
+    const colW = 130, gutterW = 64, rowH = 24, headerH = 40, titleH = 50;
+    const legendCols = 4;
+    const legendRowH = 20;
+    const legendRows = Math.ceil(state.tasks.length / legendCols) || 1;
+    const legendH = 26 + legendRows * legendRowH;
+    const gridH = SLOT_COUNT * rowH;
+    const width = gutterW + DAYS.length * colW;
+    const height = titleH + headerH + gridH + legendH;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.textBaseline = "top";
+
+    ctx.fillStyle = "#14181f";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#e8ecf2";
+    ctx.font = "bold 18px -apple-system, Segoe UI, Arial, sans-serif";
+    ctx.fillText("TH CABINETS — FORTNIGHTLY SCHEDULE", 16, 12);
+    ctx.fillStyle = "#98a2b3";
+    ctx.font = "11px -apple-system, Segoe UI, Arial, sans-serif";
+    ctx.fillText("Generated " + new Date().toLocaleDateString(), 16, 34);
+
+    const headerY = titleH;
+    DAYS.forEach((day, i) => {
+      const x = gutterW + i * colW;
+      ctx.fillStyle = day.week === "B" ? "#262d3c" : "#232a36";
+      ctx.fillRect(x, headerY, colW, headerH);
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.strokeRect(x + 0.5, headerY + 0.5, colW - 1, headerH - 1);
+      ctx.fillStyle = "#e8ecf2";
+      ctx.font = "bold 12px -apple-system, Segoe UI, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(day.name, x + colW / 2, headerY + 8);
+      ctx.font = "9px -apple-system, Segoe UI, Arial, sans-serif";
+      ctx.fillStyle = "#98a2b3";
+      ctx.fillText("WEEK " + day.week, x + colW / 2, headerY + 24);
+      ctx.textAlign = "left";
+    });
+
+    const gridTop = headerY + headerH;
+
+    DAYS.forEach((day, i) => {
+      const x = gutterW + i * colW;
+      if (day.week === "B") {
+        ctx.fillStyle = "rgba(255,255,255,0.02)";
+        ctx.fillRect(x, gridTop, colW, gridH);
+      }
+    });
+
+    for (let s = 0; s <= SLOT_COUNT; s++) {
+      const y = gridTop + s * rowH;
+      ctx.strokeStyle = s % 2 === 0 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)";
+      ctx.beginPath();
+      ctx.moveTo(gutterW, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      if (s % 2 === 0 && s < SLOT_COUNT) {
+        ctx.fillStyle = "#98a2b3";
+        ctx.font = "10px -apple-system, Segoe UI, Arial, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText(slotToLabel(s), gutterW - 6, y + 3);
+        ctx.textAlign = "left";
+      }
+    }
+
+    for (let i = 0; i <= DAYS.length; i++) {
+      const x = gutterW + i * colW;
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.beginPath();
+      ctx.moveTo(x, headerY);
+      ctx.lineTo(x, gridTop + gridH);
+      ctx.stroke();
+    }
+
+    state.blocks.forEach(b => {
+      const dayIdx = DAYS.findIndex(d => d.id === b.day);
+      const task = taskById(b.taskId);
+      if (dayIdx < 0 || !task) return;
+      const x = gutterW + dayIdx * colW + 2;
+      const y = gridTop + b.start * rowH;
+      const h = (b.end - b.start) * rowH;
+      ctx.fillStyle = task.color;
+      roundRect(ctx, x, y, colW - 4, h, 3);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 1;
+      roundRect(ctx, x + 0.5, y + 0.5, colW - 5, Math.max(h - 1, 1), 3);
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 10px -apple-system, Segoe UI, Arial, sans-serif";
+      clipText(ctx, task.name, x + 5, y + 4, colW - 10);
+      if (h > 18) {
+        ctx.font = "9px -apple-system, Segoe UI, Arial, sans-serif";
+        clipText(ctx, `${slotToLabel(b.start)} – ${slotToLabel(b.end)}`, x + 5, y + 16, colW - 10);
+      }
+    });
+
+    let ly = gridTop + gridH + 20;
+    ctx.font = "10px -apple-system, Segoe UI, Arial, sans-serif";
+    const legendColW = width / legendCols;
+    state.tasks.forEach((t, i) => {
+      const col = i % legendCols, row = Math.floor(i / legendCols);
+      const x = 16 + col * legendColW;
+      const y = ly + row * legendRowH;
+      ctx.fillStyle = t.color;
+      ctx.fillRect(x, y + 2, 10, 10);
+      ctx.fillStyle = "#e8ecf2";
+      clipText(ctx, t.name, x + 16, y + 2, legendColW - 24);
+    });
+
+    return canvas;
+  }
+
+  document.getElementById("btn-export-jpg").addEventListener("click", () => {
+    const canvas = buildScheduleCanvas();
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `th-cabinets-schedule-${new Date().toISOString().slice(0, 10)}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, "image/jpeg", 0.92);
+  });
+
+  // ---- Export to PDF (browser print -> Save as PDF) ------------------------
+  document.getElementById("btn-export-pdf").addEventListener("click", () => {
+    window.print();
+  });
+
   // ---- Export / Import / Clear --------------------------------------------
   document.getElementById("btn-export").addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });

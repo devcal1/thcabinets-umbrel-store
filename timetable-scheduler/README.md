@@ -4,18 +4,35 @@ A working prototype for building colour-coded fortnightly timetables, based on t
 `th_cabinets_schedule_v9_dark.pdf` mockup. Pure HTML/CSS/JS — no build step, no
 dependencies.
 
+## Team distribution (OneDrive)
+
+This copy lives in the shared OneDrive folder (`Admin Docs/Fortnightly Scheduler`)
+so the whole team can reach it. Each person keeps their **own** schedule:
+
+- The app files (`index.html`, `style.css`, `app.js`) are shared/synced — everyone
+  runs the same tool.
+- Each person's actual timetable data lives only in **their own browser's
+  `localStorage`**, keyed on their machine — it is *not* stored in these files and
+  does not sync between people. That's intentional: 5 people opening the same
+  `index.html` each get their own independent schedule.
+- To back up or hand a schedule to someone else, use **Export JSON** → send the
+  file → they use **Import JSON**.
+- Because it's opened via `file://`, use Chrome or Edge (both support
+  `localStorage` on local files). Right-click `index.html` → Open with → your
+  browser, then bookmark the page for next time.
+
 ## Running it
 
-**Quick look (static):**
-Open `index.html` directly in a browser. Good enough to see the layout, but some
-browsers restrict `localStorage`/scripts for `file://` pages.
+**From OneDrive (how the team uses it):**
+Double-click `index.html`, or open it from a browser (Ctrl+O). Everything
+works from the file directly — no server needed for day-to-day use.
 
-**Full interactive preview (recommended):**
+**Full local dev preview (only needed if you're changing the code):**
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File serve.ps1
 ```
-Then open http://localhost:8791/ — this runs a tiny dependency-free static file
-server (pure .NET `HttpListener` via PowerShell, since this machine has no
+Then open http://localhost:8791/ — a tiny dependency-free static file server
+(pure .NET `HttpListener` via PowerShell, since this machine has no
 Python/Node on PATH).
 
 ## What it does
@@ -39,23 +56,28 @@ Python/Node on PATH).
 - **+ Add Task**: name + colour picker. Click the pencil on any chip to
   rename/recolour it, or delete it (cascades to remove blocks using it, with
   confirmation).
-- **Export/Import JSON**: since data only lives in this browser's
-  `localStorage`, use Export to back up a schedule or move it to another
-  browser/machine, Import to load one back in.
+- **Export JPG**: renders the current schedule (grid, colours, legend) to a
+  downloadable image — drawn straight from your data, not a screenshot, so
+  it stays crisp at any size.
+- **Export PDF**: opens the browser's print dialog with a print-friendly
+  layout (chrome/buttons hidden, full grid shown) — choose "Save as PDF" as
+  the destination. Works the same in Chrome/Edge.
+- **Export/Import JSON**: the underlying data backup/transfer format — use
+  Export to back up a schedule or hand it to a teammate, Import to load one
+  back in.
 - **Clear All**: wipes blocks (keeps your task list).
 
 Data is saved to `localStorage` under the key `th_timetable_v1` after every
-change — no server, no account, nothing to configure.
+change.
 
 ## Known limits / good next steps
 
-- Single browser only (localStorage). A small backend (JSON file or SQLite,
-  similar to `thcabinets-splash/app`) would let the schedule be reached from
-  multiple devices.
+- Per-browser only (localStorage) by design for this team — see
+  "Team distribution" above. If a real shared/synced board is ever wanted
+  instead, that needs a small backend (JSON file or SQLite, similar to
+  `thcabinets-splash/app`).
 - No undo — deletes and the "Copy Week A → B" overwrite are immediate (the
   copy button does confirm first). Export JSON periodically as a backup.
-- No print/PNG export matching the original PDF mockup's layout — could be
-  added with a print stylesheet or a canvas-based export.
 - Touch support is untested (pointer events are used throughout, which should
   mostly work on tablets, but hover-only affordances like the delete × would
   need a tap-to-reveal treatment).

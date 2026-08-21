@@ -344,3 +344,17 @@ h1 {
 }
 
 .hidden { display: none !important; }
+
+@media print {
+  @page { size: A3 landscape; margin: 10mm; }
+  body { background: #14181f; }
+  .palette-bar, .task-form, .hint, .app-footer, .app-header-actions { display: none !important; }
+  .app-header { border-image: none; border-bottom: 2px solid #2fa190; }
+  .schedule-viewport {
+    max-height: none;
+    overflow: visible;
+    border: none;
+    margin: 0;
+  }
+  .schedule-inner { width: fit-content; }
+}
