@@ -1,15 +1,16 @@
 manifestVersion: 1
 id: thcabinets-splash
 name: TH Cabinets
-tagline: Company landing page and job photo search
+tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.4.0"
+version: "1.5.0"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
-  browsing past job photos by keyword, and an admin page for uploading and
-  tagging new job photos.
+  browsing past job photos by keyword, an admin page for uploading and
+  tagging new job photos, and a live manufacturing/installing schedule board
+  that replaces the whiteboard-and-magnets fortnightly schedule.
 developer: TH Cabinets
 website: ""
 submitter: TH Cabinets
@@ -19,10 +20,13 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Admin photo-list thumbnails are bigger again (160px to 192px). Each row in
-  the photo list now has its own "Suggest tags" button — same Gemini-powered
-  suggestions as the upload form, but for photos already uploaded, so you can
-  go back and fill in tags on existing photos without re-uploading them.
+  New: a live Schedule board at /schedule.html, replacing the paper
+  whiteboard for weekly manufacturing/installing planning. Jobs are rows,
+  Mon-Fri are columns, split into Manufacturing and Installing panels per
+  week, with colour-coded worker chips per day — browse any past or future
+  week, add/rename/reorder/duplicate job rows, and export a week as PDF or
+  JPG. A Workers page manages the crew roster and chip colours. The splash
+  page now also links directly to the photo upload/admin tool.
 dependencies: []
 path: ""
 defaultUsername: ""

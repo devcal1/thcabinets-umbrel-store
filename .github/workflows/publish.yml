@@ -85,7 +85,75 @@ jobs:
           body=$(curl -sf http://localhost:3000/api/photos)
           [ "$body" = "[]" ] || { echo "Expected [] after delete, got: $body" >&2; exit 1; }
 
-          echo "Smoke test passed."
+          echo "Photo API smoke test passed."
+
+          echo "--- Schedule API ---"
+
+          echo "GET /api/workers should have the seeded roster..."
+          worker_count=$(curl -sf http://localhost:3000/api/workers | jq 'length')
+          [ "$worker_count" -ge 1 ] || { echo "Expected at least 1 seeded worker, got $worker_count" >&2; exit 1; }
+
+          echo "Creating a CI worker..."
+          worker_id=$(curl -sf -X POST -H "Content-Type: application/json" -d '{"name":"CI Worker"}' \
+            http://localhost:3000/api/workers | jq -r '.id')
+          [ "$worker_id" != "null" ] || { echo "No worker id returned" >&2; exit 1; }
+
+          echo "GET /api/schedule should return a two-week fortnight, 7 days apart..."
+          schedule=$(curl -sf "http://localhost:3000/api/schedule?week=2025-11-19")
+          week1_start=$(echo "$schedule" | jq -r '.weeks[0].start')
+          week2_start=$(echo "$schedule" | jq -r '.weeks[1].start')
+          week1_dow=$(date -u -d "$week1_start" +%u)
+          [ "$week1_dow" = "1" ] || { echo "Expected week1 to start on a Monday, got $week1_start (dow $week1_dow)" >&2; exit 1; }
+          expected_week2=$(date -u -d "$week1_start + 7 days" +%F)
+          [ "$week2_start" = "$expected_week2" ] || { echo "Expected week2 $expected_week2, got $week2_start" >&2; exit 1; }
+
+          echo "Adding a job row to week 1 manufacturing..."
+          row=$(curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"weekStart\":\"$week1_start\",\"panel\":\"manufacturing\",\"jobName\":\"CI Job\",\"notes\":\"n1\"}" \
+            http://localhost:3000/api/rows)
+          row_id=$(echo "$row" | jq -r '.rowId')
+          job_id=$(echo "$row" | jq -r '.jobId')
+          [ "$row_id" != "null" ] || { echo "No rowId returned: $row" >&2; exit 1; }
+
+          echo "Confirming the job shows up in /api/jobs..."
+          curl -sf http://localhost:3000/api/jobs | jq -e ".[] | select(.id == $job_id and .name == \"CI Job\")" > /dev/null
+
+          echo "Assigning the CI worker to Monday..."
+          assignment=$(curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"day\":\"mon\",\"workerId\":$worker_id}" \
+            "http://localhost:3000/api/rows/$row_id/assignments")
+          assignment_id=$(echo "$assignment" | jq -r '.assignmentId')
+          [ "$assignment_id" != "null" ] || { echo "No assignmentId returned: $assignment" >&2; exit 1; }
+
+          echo "Confirming the assignment shows up in the schedule..."
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e ".weeks[0].manufacturing[] | select(.rowId == $row_id) | .cells.mon[] | select(.workerId == $worker_id)" > /dev/null
+
+          echo "Editing job notes..."
+          curl -sf -X PATCH -H "Content-Type: application/json" -d '{"notes":"updated"}' \
+            "http://localhost:3000/api/jobs/$job_id" | jq -e '.notes == "updated"' > /dev/null
+
+          echo "Duplicating the row to next week..."
+          dup=$(curl -sf -X POST -H "Content-Type: application/json" -d '{}' \
+            "http://localhost:3000/api/rows/$row_id/duplicate")
+          dup_row_id=$(echo "$dup" | jq -r '.rowId')
+          [ "$dup_row_id" != "null" ] && [ "$dup_row_id" != "$row_id" ] || { echo "Duplicate row not created: $dup" >&2; exit 1; }
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e ".weeks[1].manufacturing[] | select(.rowId == $dup_row_id) | .cells.mon[] | select(.workerId == $worker_id)" > /dev/null
+
+          echo "Archiving the CI worker..."
+          curl -sf -X PATCH -H "Content-Type: application/json" -d '{"archived":true}' \
+            "http://localhost:3000/api/workers/$worker_id" | jq -e '.archived == true' > /dev/null
+
+          echo "Deleting the assignment and both rows..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/assignments/$assignment_id")
+          [ "$status" = "204" ] || { echo "Expected 204 deleting assignment, got $status" >&2; exit 1; }
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/rows/$row_id")
+          [ "$status" = "204" ] || { echo "Expected 204 deleting row, got $status" >&2; exit 1; }
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/rows/$dup_row_id")
+          [ "$status" = "204" ] || { echo "Expected 204 deleting dup row, got $status" >&2; exit 1; }
+
+          echo "Schedule API smoke test passed."
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

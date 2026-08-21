@@ -75,11 +75,17 @@
     border-radius: 4px;
     font-size: 13px;
   }
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
   .btn-photos {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-top: 8px;
     padding: 10px 20px;
     border: 1px solid var(--accent);
     border-radius: 8px;
@@ -110,7 +116,11 @@
         <code>src</code> above) in <code>app/public/</code> to replace this placeholder.
       </div>
     </div>
-    <a class="btn-photos" href="/search.html">View Job Photos</a>
+    <div class="btn-row">
+      <a class="btn-photos" href="/search.html">View Job Photos</a>
+      <a class="btn-photos" href="/admin.html">Upload Photos</a>
+      <a class="btn-photos" href="/schedule.html">Schedule</a>
+    </div>
   </div>
 </body>
 </html>

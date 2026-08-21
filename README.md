@@ -15,17 +15,19 @@ thcabinets-splash/
   app/                          # image build context — this is what CI publishes
     Dockerfile
     package.json
-    server.js                    Express app: static hosting + /api/photos
-    db.js                        better-sqlite3 schema
+    server.js                    Express app: static hosting + /api/photos + /api/schedule etc.
+    db.js                        better-sqlite3 schema (photos + schedule tables)
     public/
-      index.html                 splash page (logo + link to /search.html)
+      index.html                 splash page (links to search / admin / schedule)
       logo.png
       search.html / search.css / search.js   customer-facing photo search
-      admin.html / admin.css / admin.js       upload + tag management (unlinked, direct URL only)
+      admin.html / admin.css / admin.js       upload + tag management
+      schedule.html / schedule.css / schedule.js   live manufacturing/installing schedule board
+      workers.html / workers.js               worker roster + chip colour management
       assets/th-header-banner.png
   data/                          persistent runtime storage only (not code)
     uploads/                      uploaded photo originals + generated thumbnails
-    db/                           photos.db (SQLite)
+    db/                           photos.db + schedule tables (SQLite, one file)
     config/                       gemini-api-key (optional, see "AI tag suggestions" below)
 .github/workflows/publish.yml  builds + pushes the image to GHCR on every push to master
 ```
@@ -111,6 +113,34 @@ install/update.
     **Suggest tags** button — same Gemini flow as the upload form, but for a
     photo that's already been uploaded, so you can go back and fill in tags
     on older photos without re-uploading them.
+
+- **`/schedule.html`** — staff-facing live schedule, replacing the whiteboard.
+  Two weeks are shown at a time (browse to any past/future week with the
+  arrows or the date picker — it always snaps to the Monday of whichever
+  date you pick). Each week has a Manufacturing and an Installing panel,
+  jobs as rows, Mon–Fri as columns:
+  - **Add a job** — type a name in the box under either panel and hit
+    **+ Add**. Typing a name that already exists (autocomplete suggests it)
+    reuses that job, so the same job can have rows in both Manufacturing and
+    Installing, or across different weeks, while sharing one name/notes.
+  - **Assign a worker to a day** — click the dashed **+** in that day's
+    cell and pick a name; click the **×** on a chip to remove it.
+  - **Rename a job** — click its name and type; saves on Enter/blur.
+  - **Notes** — the pencil icon expands a per-job notes field.
+  - **Reorder / copy forward / remove** — the up/down arrows reorder a row
+    within its panel, the arrow-right icon duplicates the row (and its
+    assignments) onto the next week, the trash icon removes the row from
+    that week (the job itself, and its other rows, are untouched).
+  - **Export PDF** — opens the browser print dialog (choose "Save as PDF").
+    **Export JPG** — renders the current two weeks to a downloadable image,
+    drawn from the live data (not a screenshot).
+  - No login — anyone on the LAN who opens the page can view and edit,
+    same trust model as the rest of this app.
+- **`/workers.html`** — manage the crew roster shown on the schedule: add a
+  worker, rename them, drag the hue slider to change their chip colour, or
+  **Archive** someone who's left (keeps their name/colour on past weeks'
+  history but hides them from new assignments — there's no hard delete, by
+  design, so old weeks stay accurate).
 
 ## AI tag suggestions (optional)
 
