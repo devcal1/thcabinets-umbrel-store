@@ -1,0 +1,300 @@
+{
+  "catalogueVersion": "2.71",
+  "sourceWorkbook": "quote_master_tb.xlsx",
+  "extractedOn": "2026-08-22",
+  "currency": "AUD",
+  "gstRate": 0.10,
+
+  "company": {
+    "name": "",
+    "abn": "",
+    "phone": "",
+    "email": "",
+    "logoDataUrl": null,
+    "quoteValidDays": 30,
+    "terms": "50% deposit on acceptance. Balance on completion. Prices valid 30 days."
+  },
+
+  "clientTiers": [
+    { "code": "T4", "label": "T4(Commercial)", "materialMarkup": 1.51 },
+    { "code": "T3", "label": "T3(Private)",    "materialMarkup": 1.41 },
+    { "code": "T2", "label": "T2(Builder)",    "materialMarkup": 1.34 },
+    { "code": "T1", "label": "T1(Discount)",   "materialMarkup": 1.25 },
+    { "code": "T0", "label": "T0(Cost)",       "materialMarkup": 1.02 }
+  ],
+  "defaultClientTier": "T2",
+
+  "adjustmentSteps": [-0.2, -0.15, -0.125, -0.1, -0.075, -0.05, -0.025, 0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.25, 0.3],
+
+  "overhead": {
+    "dailyRunningCost": 1120,
+    "jobsPerDay": 2.4,
+    "hoursPerDay": 8,
+    "_derivedHourlyRate": 58.333333333333336,
+    "_formula": "dailyRunningCost / jobsPerDay / hoursPerDay"
+  },
+
+  "cnc": {
+    "whiteboard": { "minsPerSheet": 20, "sheetsPerCutter": 60, "costPerCutter": 95, "labourRateItem": "CNC Cut/Edging" },
+    "standard":   { "minsPerSheet": 25, "sheetsPerCutter": 70, "costPerCutter": 92, "labourRateItem": "CNC Cut/Edging" },
+    "_formula": "((labourRate/60) * minsPerSheet) * (costPerCutter / sheetsPerCutter)",
+    "_derived": { "whiteboardPerSheet": 34.833333333333336, "standardPerSheet": 36.142857142857146 }
+  },
+
+  "travel": {
+    "perKmRates": { "Trips to measure": 2.8, "Trips in ute": 2.8, "Trips in truck": 3.5 },
+    "defaultKmFromFactory": 25
+  },
+
+  "hourlyRateBuilder": {
+    "baseRate": 40,
+    "efficiency": 0.75,
+    "superPct": 14,
+    "workcoverPct": 3.5,
+    "bonusPct": 0,
+    "profitPct": 30,
+    "underquotePct": 20,
+    "_note": "Advisory calculator in Settings only. Does not feed pricing."
+  },
+
+  "cogs": {
+    "labourFactor": 0.65,
+    "materialsFactor": 1.10,
+    "_note": "labourFactor = share of a charged labour hour that is real wage cost. materialsFactor = materials at cost plus wastage/handling loading. Both were hardcoded in the source workbook formulas; exposed here as editable settings."
+  },
+
+  "warnings": {
+    "roomCogsRatioMax": 0.80,
+    "jobMaterialsRatioMax": 0.56
+  },
+
+  "bonus": {
+    "poolPctOfTotal": 0.01,
+    "poolMultiplier": 1.5,
+    "split": { "office": 0.5, "factory": 0.25, "site": 0.25 },
+    "_formula": "pool = (totalIncGst * poolPctOfTotal * poolMultiplier) + (sumOfRoomAdjust / 2)"
+  },
+
+  "sections": [
+    {
+      "id": "officeLabour",
+      "title": "Office",
+      "kind": "labour",
+      "costBucket": "labourOffice",
+      "hoursBucket": "office",
+      "unitLabel": "hrs",
+      "items": [
+        { "name": "Measure",      "rate": 93 },
+        { "name": "Design",       "rate": 93 },
+        { "name": "Quote",        "rate": 93 },
+        { "name": "Nest & Order", "rate": 93 },
+        { "name": "Extra",        "rate": 114 }
+      ]
+    },
+    {
+      "id": "boardEdge",
+      "title": "Board & Edge",
+      "kind": "board",
+      "costBucket": "materials",
+      "unitLabel": "sheets",
+      "_rateFormula": "boardCost + (edgeCost100m / 4) + cncPerSheet",
+      "items": [
+        { "name": "Whiteboard",                    "boardCost": 55,   "edgeCost100m": 30,  "cncProfile": "whiteboard", "supplier": "Polytec" },
+        { "name": "Matt",                          "boardCost": 104,  "edgeCost100m": 60,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "Sheen",                         "boardCost": 136,  "edgeCost100m": 80,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "Texture",                       "boardCost": 96,   "edgeCost100m": 45,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "Woodmatt",                      "boardCost": 160,  "edgeCost100m": 55,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "White 18mm Satin",              "boardCost": 85,   "edgeCost100m": 0,   "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "2pac Hampton Sheet",            "boardCost": 720,  "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "2pac Flat Sheet",               "boardCost": 520,  "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "Thermolaminate",                "boardCost": 1,    "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "19mm Flooring",                 "boardCost": 95,   "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "12mm TUFFAK AR",                "boardCost": 3000, "edgeCost100m": 65,  "cncProfile": "standard" },
+        { "name": "17mm FormPly",                  "boardCost": 105,  "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "Pinewrap (per length)",         "boardCost": 25,   "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "17mm Veneer Blackbutt (2pacd)", "boardCost": 620,  "edgeCost100m": 100, "cncProfile": "standard",   "supplier": "MS" }
+      ]
+    },
+    {
+      "id": "benchtops",
+      "title": "Benchtops/Vinyl",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "m",
+      "items": [
+        { "name": "Laminate(per. m) 600m", "rate": 170 },
+        { "name": "Laminate(per. m) 900m", "rate": 275 },
+        { "name": "Meganite 12mm/m",       "rate": 335 },
+        { "name": "Meganite 20mm/m",       "rate": 410 },
+        { "name": "Stone",                 "rate": 1 },
+        { "name": "Timber",                "rate": 1 }
+      ]
+    },
+    {
+      "id": "drawers",
+      "title": "Drawers",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "defaultSupplier": "Lincoln Sentry",
+      "items": [
+        { "name": "Metabox \"N\" 500mm", "rate": 20,  "code": "1259500" },
+        { "name": "Metabox \"M\" 500mm", "rate": 15,  "code": "1260500" },
+        { "name": "Metabox \"K\" 500mm", "rate": 25,  "code": "1261500" },
+        { "name": "Metabox \"H\" 500mm", "rate": 30,  "code": "1262500" },
+        { "name": "Legrabox M 500mm",    "rate": 80 },
+        { "name": "Legrabox K 500mm",    "rate": 95 },
+        { "name": "Legrabox C 500mm",    "rate": 115 },
+        { "name": "Legrabox F 500mm",    "rate": 140 },
+        { "name": "DTC/Edge 95x500",     "rate": 25 },
+        { "name": "DTC/Edge 127x500",    "rate": 31 },
+        { "name": "DTC/Edge 178x500",    "rate": 38 },
+        { "name": "DTC 209x500",         "rate": 42 },
+        { "name": "DTC/Edge 238x500",    "rate": 55 }
+      ]
+    },
+    {
+      "id": "innerDrawers",
+      "title": "Inner Drawers",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "defaultSupplier": "Lincoln Sentry",
+      "items": [
+        { "name": "Metabox \"N\" 500mm", "rate": 20,  "code": "1259500" },
+        { "name": "Metabox \"M\" 500mm", "rate": 15,  "code": "1260500" },
+        { "name": "Metabox \"K\" 500mm", "rate": 25,  "code": "1261500" },
+        { "name": "Metabox \"H\" 500mm", "rate": 30,  "code": "1262500" },
+        { "name": "Legrabox M 500mm",    "rate": 95 },
+        { "name": "Legrabox K 500mm",    "rate": 110 },
+        { "name": "Legrabox C 500mm",    "rate": 130 },
+        { "name": "Legrabox F 500mm",    "rate": 155 },
+        { "name": "DTC/Edge 95x500",     "rate": 35 },
+        { "name": "DTC/Edge 127x500",    "rate": 41 },
+        { "name": "DTC/Edge 178x500",    "rate": 48 },
+        { "name": "DTC 209x500",         "rate": 52 },
+        { "name": "DTC/Edge 238x500",    "rate": 65 }
+      ]
+    },
+    {
+      "id": "handles",
+      "title": "Handles",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "defaultSupplier": "Dorset",
+      "items": [
+        { "name": "Standard Contemporary", "rate": 14 },
+        { "name": "Standard Traditional",  "rate": 22 },
+        { "name": "Fingerpull (per pull)", "rate": 20 },
+        { "name": "P2O Doors",             "rate": 10 },
+        { "name": "Sharknose (per pull)",  "rate": 32 }
+      ]
+    },
+    {
+      "id": "hardware",
+      "title": "Hardware",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "items": [
+        { "name": "Blum 107d & plate",             "rate": 4 },
+        { "name": "Blum 110d & plate",             "rate": 5.5 },
+        { "name": "Blum 155d & plate",             "rate": 16 },
+        { "name": "Adjustable plastic legs",       "rate": 6 },
+        { "name": "Mirror",                        "rate": 1 },
+        { "name": "Finista S/S cutlery tray",      "rate": 80,   "supplier": "Lincoln Sentry" },
+        { "name": "Orgaline extra cutlery insert", "rate": 150,  "supplier": "Lincoln Sentry" },
+        { "name": "450mm dual 37litre bin",        "rate": 390,  "supplier": "VJS" },
+        { "name": "150mm Pullout Unit",            "rate": 95,   "supplier": "Hafele" },
+        { "name": "VS Cor Fold Wire Unit",         "rate": 790,  "supplier": "VS" },
+        { "name": "900mm U/M RH Sweigen Black",    "rate": 820,  "supplier": "VS" },
+        { "name": "600mm U/M RH Blaupunkt",        "rate": 350,  "supplier": "Blaupunkt" },
+        { "name": "700mm U/M RH Blaupunkt",        "rate": 600,  "supplier": "Blaupunkt" },
+        { "name": "Uno + Duo Revego (3door)",      "rate": 5100 },
+        { "name": "Sliding Hardware (per door)",   "rate": 25 },
+        { "name": "Sliding Door Top&Bot Track",    "rate": 190 }
+      ]
+    },
+    {
+      "id": "roomExtras",
+      "title": "Extras - p/m",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "m",
+      "items": [
+        { "name": "Kickers",      "rate": 45 },
+        { "name": "Bulkheads",    "rate": 35 },
+        { "name": "Shadowline",   "rate": 30 },
+        { "name": "LED",          "rate": 290 },
+        { "name": "Hanging Rail", "rate": 55 }
+      ]
+    },
+    {
+      "id": "factoryLabour",
+      "title": "Factory",
+      "kind": "labour",
+      "costBucket": "labourWorkshop",
+      "hoursBucket": "factory",
+      "unitLabel": "hrs",
+      "items": [
+        { "name": "Assemble/Set up",  "rate": 86 },
+        { "name": "Install Hardware", "rate": 86 },
+        { "name": "Extra",            "rate": 114 }
+      ]
+    },
+    {
+      "id": "siteLabour",
+      "title": "Site",
+      "kind": "labour",
+      "costBucket": "labourWorkshop",
+      "hoursBucket": "site",
+      "unitLabel": "hrs",
+      "items": [
+        { "name": "Removal",               "rate": 76 },
+        { "name": "Installation",          "rate": 93 },
+        { "name": "Post-install Finishes", "rate": 114 }
+      ]
+    },
+    {
+      "id": "travel",
+      "title": "Travel",
+      "kind": "travel",
+      "costBucket": "overheads",
+      "hoursBucket": "travel",
+      "unitLabel": "trips",
+      "_rateFormula": "kmFromFactory * perKm",
+      "items": [
+        { "name": "Trips to measure", "perKm": 2.8 },
+        { "name": "Trips in ute",     "perKm": 2.8 },
+        { "name": "Trips in truck",   "perKm": 3.5 }
+      ]
+    }
+  ],
+
+  "otherLabourRates": {
+    "CNC Cut/Edging": 66,
+    "Sand & Prepare": 86,
+    "Spraying": 86,
+    "Travel - per km": 2.8
+  },
+
+  "consumables": [
+    { "name": "Matt edgetape 100m",    "rate": 150, "supplier": "Surteco" },
+    { "name": "Sheen edgetape 100m",   "rate": 150, "supplier": "Surteco" },
+    { "name": "Texture edgetape 100m", "rate": 150, "supplier": "Surteco" },
+    { "name": "Substrates (metres)",   "rate": 20 },
+    { "name": "Kickers (metres)",      "rate": 44 },
+    { "name": "Bulkheads (metres)",    "rate": 33 },
+    { "name": "Pinewrap (per length)", "rate": 25 }
+  ],
+
+  "dropdowns": {
+    "rooms": ["Kitchen", "Pantry", "Laundry", "WIR", "Ensuite", "Bathroom", "Mudroom", "Powderroom", "Kitchenette", "Office"],
+    "doorsPanels": ["None", "Matt (16mm)", "Sheen (16mm)", "Woodmatt (16mm)", "Matt (18mm)", "Sheen (18mm)", "Woodmatt (18mm)", "Veneer (2pac)", "Vinyl (S1)", "Vinyl (S2-S3)", "Vinyl (S4)", "2pac (Flat)", "2pac (S2-S3)", "2pac (S4)"],
+    "benchtops": ["None", "Laminate (matt)", "Laminate (woodmatt)", "Laminate (gloss)", "Solidsurface (white) 12mm", "Solidsurface (white) 20mm", "Solid Surface (vein) 12mm", "Solid Surface (vein) 20mm", "Timber (2pac)", "Stone (Designer) 20mm", "Stone (Designer) 40mm", "Stone (Premium) 20mm", "Stone (Premium) 40mm"],
+    "jobSize": ["Tiny", "Small", "Medium", "Large"],
+    "jobType": ["Flatpack Only", "Manufacture/Supply", "Manufacture/Install", "Install Only"],
+    "clients": ["THC", "BPM", "BP", "BBM", "DB", "Matrix", "YC"]
+  }
+}
