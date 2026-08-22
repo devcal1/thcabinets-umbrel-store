@@ -1,0 +1,2673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Joinery Quoter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #14161a;
+  --surface: #1c1f25;
+  --surface-2: #23272e;
+  --surface-3: #2a2f37;
+  --border: #2e343d;
+  --text: #e6e9ee;
+  --text-dim: #97a0ad;
+  --accent: #4a9eff;
+  --good: #3fb87f;
+  --warn: #e0a33e;
+  --bad: #e05c5c;
+  --money: #7ee0a8;
+  --radius: 8px;
+  --sp1: 8px; --sp2: 16px; --sp3: 24px; --sp4: 32px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px; }
+body { min-height: 100vh; }
+h1,h2,h3,h4 { margin: 0 0 8px 0; font-weight: 600; }
+h1 { font-size: 20px; } h2 { font-size: 17px; } h3 { font-size: 14px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; }
+p { margin: 0 0 8px 0; line-height: 1.5; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--text-dim); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+input, select, textarea { font-family: inherit; font-size: inherit; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; width: 100%; }
+input[type=number] { text-align: right; font-variant-numeric: tabular-nums; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+textarea { resize: vertical; min-height: 60px; }
+label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 3px; }
+button { font-family: inherit; font-size: inherit; cursor: pointer; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 7px 14px; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger { border-color: var(--bad); color: var(--bad); background: transparent; }
+button.ghost { background: transparent; border-color: transparent; }
+button.small { padding: 3px 9px; font-size: 12px; }
+button:disabled { opacity: .4; cursor: default; }
+a { color: var(--accent); cursor: pointer; }
+.money { color: var(--money); font-variant-numeric: tabular-nums; font-weight: 600; }
+.dim { color: var(--text-dim); }
+.small { font-size: 12px; }
+.right { text-align: right; }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border); white-space: nowrap; }
+.chip.good { color: var(--good); border-color: var(--good); }
+.chip.warn { color: var(--warn); border-color: var(--warn); }
+.chip.bad { color: var(--bad); border-color: var(--bad); }
+.chip.info { color: var(--accent); border-color: var(--accent); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp2); }
+.stack { display: flex; flex-direction: column; gap: var(--sp2); }
+.stack.tight { gap: var(--sp1); }
+.row { display: flex; gap: var(--sp2); align-items: center; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.grid { display: grid; gap: var(--sp2); }
+.grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+.spacer { flex: 1; }
+.hint { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.banner { border-radius: var(--radius); padding: 10px 14px; font-size: 13px; }
+.banner.warn { background: rgba(224,163,62,.12); border: 1px solid var(--warn); color: var(--warn); }
+.banner.bad { background: rgba(224,92,92,.12); border: 1px solid var(--bad); color: var(--bad); }
+.banner.info { background: rgba(74,158,255,.1); border: 1px solid var(--accent); color: var(--accent); }
+
+/* Nav */
+.nav { display: flex; align-items: center; gap: var(--sp3); padding: 10px var(--sp3); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 50; }
+.nav-brand { font-weight: 700; font-size: 15px; }
+.nav-tabs { display: flex; gap: 4px; }
+.nav-tab { background: transparent; border: 1px solid transparent; color: var(--text-dim); }
+.nav-tab.active { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+.nav-right { margin-left: auto; display: flex; gap: var(--sp2); align-items: center; }
+.view { padding: var(--sp3); max-width: 1400px; margin: 0 auto; }
+
+/* Dashboard */
+.tile-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--sp2); }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.tile .tile-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+.tile .tile-value { font-size: 20px; font-weight: 700; margin: 4px 0; }
+.tile .tile-n { font-size: 11px; color: var(--text-dim); }
+.panel { margin-top: var(--sp3); }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.panel-filter-note { font-size: 12px; color: var(--text-dim); }
+.suppressed { color: var(--text-dim); font-size: 13px; padding: 24px; text-align: center; border: 1px dashed var(--border); border-radius: var(--radius); }
+.filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px; margin-bottom: var(--sp3); }
+.filter-bar .field { min-width: 130px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; }
+.legend .item { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.legend .swatch { width: 10px; height: 10px; border-radius: 2px; }
+.checklist { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+.checklist .step { font-size: 13px; color: var(--text-dim); }
+.checklist .step.done { color: var(--good); }
+
+/* Quote list */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: var(--sp3); }
+.toolbar input[type=text] { max-width: 260px; }
+
+/* Editor */
+.editor-header { position: sticky; top: 49px; z-index: 40; background: var(--bg); border-bottom: 1px solid var(--border);
+  padding: 10px var(--sp3); display: flex; gap: var(--sp2); align-items: center; flex-wrap: wrap; }
+.editor-header .field { min-width: 140px; }
+.editor-header .header-total { margin-left: auto; text-align: right; }
+.editor-header .header-total .money { font-size: 22px; }
+.editor-body { display: grid; grid-template-columns: 1fr 340px; gap: var(--sp3); padding: var(--sp3); max-width: 1500px; margin: 0 auto; align-items: start; }
+@media (max-width: 1000px) { .editor-body { grid-template-columns: 1fr; } }
+.room-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin-bottom: var(--sp2); }
+.room-card-head { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.room-card-body { padding: 12px 14px; }
+.room-spec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+.section-block { border-top: 1px solid var(--border); padding: 10px 0; }
+.section-block:first-child { border-top: none; }
+.section-title-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.section-title-row .st-title { font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+.section-title-row .st-total { margin-left: auto; font-variant-numeric: tabular-nums; }
+.item-row { display: grid; grid-template-columns: 1fr 70px 60px 90px 24px; gap: 8px; align-items: center; padding: 4px 0; }
+.item-row .item-name { font-size: 13px; }
+.item-row .item-rate { font-size: 12px; color: var(--text-dim); text-align: right; }
+.add-item-row { padding-top: 6px; }
+.room-footer { padding: 12px 14px; border-top: 1px solid var(--border); background: var(--surface-2); border-radius: 0 0 var(--radius) var(--radius); }
+.rollup-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; font-size: 12px; margin-bottom: 8px; }
+.rollup-grid .ri-label { color: var(--text-dim); }
+.rollup-grid .ri-value { font-variant-numeric: tabular-nums; }
+.benchmark-chip { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+.job-summary-panel { position: sticky; top: 130px; }
+.share-bar { height: 10px; border-radius: 4px; overflow: hidden; display: flex; margin: 6px 0; }
+.hours-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; font-size: 12px; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp3);
+  max-width: 640px; width: 92%; max-height: 86vh; overflow: auto; }
+.modal h2 { margin-top: 0; }
+.wizard-modal { max-width: 560px; }
+.wizard-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: var(--sp3); }
+.wizard-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.wizard-dots .dot.active { background: var(--accent); }
+
+/* Settings */
+.settings-layout { display: grid; grid-template-columns: 200px 1fr; gap: var(--sp3); }
+.settings-nav { display: flex; flex-direction: column; gap: 2px; }
+.settings-nav button { text-align: left; background: transparent; border-color: transparent; color: var(--text-dim); }
+.settings-nav button.active { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+.field-row { display: grid; grid-template-columns: 220px 130px 1fr; gap: var(--sp2); align-items: start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.field-row .fr-label { font-size: 13px; }
+.field-row .fr-unit { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.field-row .fr-help { font-size: 12px; color: var(--text-dim); }
+.field-row .fr-detail { font-size: 12px; color: var(--text-dim); margin-top: 6px; padding: 8px; background: var(--surface-2); border-radius: 6px; display: none; }
+.field-row .fr-detail.open { display: block; }
+.catalogue-item-row { display: grid; grid-template-columns: 1.4fr 90px 90px 80px 90px 24px; gap: 8px; align-items: center; padding: 4px 0; }
+.dropdown-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.dropdown-list .dl-tag { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+
+.toast { position: fixed; bottom: 18px; right: 18px; background: var(--surface-3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 14px; font-size: 13px; z-index: 300; }
+
+/* Print */
+#print-root { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; }
+  #print-root, #print-root * {
+    background: #fff !important; color: #000 !important; box-shadow: none !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  #print-root table { border-collapse: collapse; page-break-inside: auto; width: 100%; }
+  #print-root tr { page-break-inside: avoid; }
+  #print-root thead { display: table-header-group; }
+  #print-root th, #print-root td { border-bottom: 1px solid #ccc; padding: 6px 4px; text-align: left; font-size: 12px; }
+  #print-root td.num, #print-root th.num { text-align: right; }
+  .print-header { display: flex; justify-content: space-between; margin-bottom: 18px; }
+  .print-right { text-align: right; }
+  .print-title { font-size: 18px; font-weight: 700; }
+  .print-company-name { font-size: 16px; font-weight: 700; }
+  .print-dim { color: #555; font-size: 12px; }
+  .print-logo { max-height: 48px; margin-bottom: 6px; }
+  .print-totals { width: 280px; margin-left: auto; margin-top: 10px; }
+  .print-total-row td { font-weight: 700; font-size: 14px; border-top: 2px solid #000; }
+  .print-section-title { font-weight: 700; margin: 18px 0 6px; font-size: 13px; text-transform: uppercase; }
+  .print-note { font-size: 11px; color: #666; margin-top: 4px; }
+  .print-terms { font-size: 11px; color: #333; white-space: pre-wrap; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="print-root"></div>
+<script type="application/json" id="seed-catalogue">
+{
+  "catalogueVersion": "2.71",
+  "sourceWorkbook": "quote_master_tb.xlsx",
+  "extractedOn": "2026-08-22",
+  "currency": "AUD",
+  "gstRate": 0.10,
+
+  "company": {
+    "name": "",
+    "abn": "",
+    "phone": "",
+    "email": "",
+    "logoDataUrl": null,
+    "quoteValidDays": 30,
+    "terms": "50% deposit on acceptance. Balance on completion. Prices valid 30 days."
+  },
+
+  "clientTiers": [
+    { "code": "T4", "label": "T4(Commercial)", "materialMarkup": 1.51 },
+    { "code": "T3", "label": "T3(Private)",    "materialMarkup": 1.41 },
+    { "code": "T2", "label": "T2(Builder)",    "materialMarkup": 1.34 },
+    { "code": "T1", "label": "T1(Discount)",   "materialMarkup": 1.25 },
+    { "code": "T0", "label": "T0(Cost)",       "materialMarkup": 1.02 }
+  ],
+  "defaultClientTier": "T2",
+
+  "adjustmentSteps": [-0.2, -0.15, -0.125, -0.1, -0.075, -0.05, -0.025, 0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.25, 0.3],
+
+  "overhead": {
+    "dailyRunningCost": 1120,
+    "jobsPerDay": 2.4,
+    "hoursPerDay": 8
+  },
+
+  "cnc": {
+    "whiteboard": { "minsPerSheet": 20, "sheetsPerCutter": 60, "costPerCutter": 95 },
+    "standard":   { "minsPerSheet": 25, "sheetsPerCutter": 70, "costPerCutter": 92 }
+  },
+
+  "travel": {
+    "perKmRates": { "Trips to measure": 2.8, "Trips in ute": 2.8, "Trips in truck": 3.5 },
+    "defaultKmFromFactory": 25
+  },
+
+  "hourlyRateBuilder": {
+    "baseRate": 40,
+    "efficiency": 0.75,
+    "superPct": 14,
+    "workcoverPct": 3.5,
+    "bonusPct": 0,
+    "profitPct": 30,
+    "underquotePct": 20
+  },
+
+  "cogs": {
+    "labourFactor": 0.65,
+    "materialsFactor": 1.10
+  },
+
+  "warnings": {
+    "roomCogsRatioMax": 0.80,
+    "jobMaterialsRatioMax": 0.56
+  },
+
+  "bonus": {
+    "poolPctOfTotal": 0.01,
+    "poolMultiplier": 1.5,
+    "split": { "office": 0.5, "factory": 0.25, "site": 0.25 }
+  },
+
+  "sections": [
+    {
+      "id": "officeLabour",
+      "title": "Office",
+      "kind": "labour",
+      "costBucket": "labourOffice",
+      "hoursBucket": "office",
+      "unitLabel": "hrs",
+      "items": [
+        { "name": "Measure",      "rate": 93 },
+        { "name": "Design",       "rate": 93 },
+        { "name": "Quote",        "rate": 93 },
+        { "name": "Nest & Order", "rate": 93 },
+        { "name": "Extra",        "rate": 114 }
+      ]
+    },
+    {
+      "id": "boardEdge",
+      "title": "Board & Edge",
+      "kind": "board",
+      "costBucket": "materials",
+      "unitLabel": "sheets",
+      "items": [
+        { "name": "Whiteboard",                    "boardCost": 55,   "edgeCost100m": 30,  "cncProfile": "whiteboard", "supplier": "Polytec" },
+        { "name": "Matt",                          "boardCost": 104,  "edgeCost100m": 60,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "Sheen",                         "boardCost": 136,  "edgeCost100m": 80,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "Texture",                       "boardCost": 96,   "edgeCost100m": 45,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "Woodmatt",                      "boardCost": 160,  "edgeCost100m": 55,  "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "White 18mm Satin",              "boardCost": 85,   "edgeCost100m": 0,   "cncProfile": "standard",   "supplier": "Polytec" },
+        { "name": "2pac Hampton Sheet",            "boardCost": 720,  "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "2pac Flat Sheet",               "boardCost": 520,  "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "Thermolaminate",                "boardCost": 1,    "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "19mm Flooring",                 "boardCost": 95,   "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "12mm TUFFAK AR",                "boardCost": 3000, "edgeCost100m": 65,  "cncProfile": "standard" },
+        { "name": "17mm FormPly",                  "boardCost": 105,  "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "Pinewrap (per length)",         "boardCost": 25,   "edgeCost100m": 0,   "cncProfile": "standard" },
+        { "name": "17mm Veneer Blackbutt (2pacd)", "boardCost": 620,  "edgeCost100m": 100, "cncProfile": "standard",   "supplier": "MS" }
+      ]
+    },
+    {
+      "id": "benchtops",
+      "title": "Benchtops/Vinyl",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "m",
+      "items": [
+        { "name": "Laminate(per. m) 600m", "rate": 170 },
+        { "name": "Laminate(per. m) 900m", "rate": 275 },
+        { "name": "Meganite 12mm/m",       "rate": 335 },
+        { "name": "Meganite 20mm/m",       "rate": 410 },
+        { "name": "Stone",                 "rate": 1 },
+        { "name": "Timber",                "rate": 1 }
+      ]
+    },
+    {
+      "id": "drawers",
+      "title": "Drawers",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "defaultSupplier": "Lincoln Sentry",
+      "items": [
+        { "name": "Metabox \"N\" 500mm", "rate": 20,  "code": "1259500" },
+        { "name": "Metabox \"M\" 500mm", "rate": 15,  "code": "1260500" },
+        { "name": "Metabox \"K\" 500mm", "rate": 25,  "code": "1261500" },
+        { "name": "Metabox \"H\" 500mm", "rate": 30,  "code": "1262500" },
+        { "name": "Legrabox M 500mm",    "rate": 80 },
+        { "name": "Legrabox K 500mm",    "rate": 95 },
+        { "name": "Legrabox C 500mm",    "rate": 115 },
+        { "name": "Legrabox F 500mm",    "rate": 140 },
+        { "name": "DTC/Edge 95x500",     "rate": 25 },
+        { "name": "DTC/Edge 127x500",    "rate": 31 },
+        { "name": "DTC/Edge 178x500",    "rate": 38 },
+        { "name": "DTC 209x500",         "rate": 42 },
+        { "name": "DTC/Edge 238x500",    "rate": 55 }
+      ]
+    },
+    {
+      "id": "innerDrawers",
+      "title": "Inner Drawers",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "defaultSupplier": "Lincoln Sentry",
+      "items": [
+        { "name": "Metabox \"N\" 500mm", "rate": 20,  "code": "1259500" },
+        { "name": "Metabox \"M\" 500mm", "rate": 15,  "code": "1260500" },
+        { "name": "Metabox \"K\" 500mm", "rate": 25,  "code": "1261500" },
+        { "name": "Metabox \"H\" 500mm", "rate": 30,  "code": "1262500" },
+        { "name": "Legrabox M 500mm",    "rate": 95 },
+        { "name": "Legrabox K 500mm",    "rate": 110 },
+        { "name": "Legrabox C 500mm",    "rate": 130 },
+        { "name": "Legrabox F 500mm",    "rate": 155 },
+        { "name": "DTC/Edge 95x500",     "rate": 35 },
+        { "name": "DTC/Edge 127x500",    "rate": 41 },
+        { "name": "DTC/Edge 178x500",    "rate": 48 },
+        { "name": "DTC 209x500",         "rate": 52 },
+        { "name": "DTC/Edge 238x500",    "rate": 65 }
+      ]
+    },
+    {
+      "id": "handles",
+      "title": "Handles",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "defaultSupplier": "Dorset",
+      "items": [
+        { "name": "Standard Contemporary", "rate": 14 },
+        { "name": "Standard Traditional",  "rate": 22 },
+        { "name": "Fingerpull (per pull)", "rate": 20 },
+        { "name": "P2O Doors",             "rate": 10 },
+        { "name": "Sharknose (per pull)",  "rate": 32 }
+      ]
+    },
+    {
+      "id": "hardware",
+      "title": "Hardware",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "ea",
+      "items": [
+        { "name": "Blum 107d & plate",             "rate": 4 },
+        { "name": "Blum 110d & plate",             "rate": 5.5 },
+        { "name": "Blum 155d & plate",             "rate": 16 },
+        { "name": "Adjustable plastic legs",       "rate": 6 },
+        { "name": "Mirror",                        "rate": 1 },
+        { "name": "Finista S/S cutlery tray",      "rate": 80,   "supplier": "Lincoln Sentry" },
+        { "name": "Orgaline extra cutlery insert", "rate": 150,  "supplier": "Lincoln Sentry" },
+        { "name": "450mm dual 37litre bin",        "rate": 390,  "supplier": "VJS" },
+        { "name": "150mm Pullout Unit",            "rate": 95,   "supplier": "Hafele" },
+        { "name": "VS Cor Fold Wire Unit",         "rate": 790,  "supplier": "VS" },
+        { "name": "900mm U/M RH Sweigen Black",    "rate": 820,  "supplier": "VS" },
+        { "name": "600mm U/M RH Blaupunkt",        "rate": 350,  "supplier": "Blaupunkt" },
+        { "name": "700mm U/M RH Blaupunkt",        "rate": 600,  "supplier": "Blaupunkt" },
+        { "name": "Uno + Duo Revego (3door)",      "rate": 5100 },
+        { "name": "Sliding Hardware (per door)",   "rate": 25 },
+        { "name": "Sliding Door Top&Bot Track",    "rate": 190 }
+      ]
+    },
+    {
+      "id": "roomExtras",
+      "title": "Extras - p/m",
+      "kind": "simple",
+      "costBucket": "materials",
+      "unitLabel": "m",
+      "items": [
+        { "name": "Kickers",      "rate": 45 },
+        { "name": "Bulkheads",    "rate": 35 },
+        { "name": "Shadowline",   "rate": 30 },
+        { "name": "LED",          "rate": 290 },
+        { "name": "Hanging Rail", "rate": 55 }
+      ]
+    },
+    {
+      "id": "factoryLabour",
+      "title": "Factory",
+      "kind": "labour",
+      "costBucket": "labourWorkshop",
+      "hoursBucket": "factory",
+      "unitLabel": "hrs",
+      "items": [
+        { "name": "Assemble/Set up",  "rate": 86 },
+        { "name": "Install Hardware", "rate": 86 },
+        { "name": "Extra",            "rate": 114 }
+      ]
+    },
+    {
+      "id": "siteLabour",
+      "title": "Site",
+      "kind": "labour",
+      "costBucket": "labourWorkshop",
+      "hoursBucket": "site",
+      "unitLabel": "hrs",
+      "items": [
+        { "name": "Removal",               "rate": 76 },
+        { "name": "Installation",          "rate": 93 },
+        { "name": "Post-install Finishes", "rate": 114 }
+      ]
+    },
+    {
+      "id": "travel",
+      "title": "Travel",
+      "kind": "travel",
+      "costBucket": "overheads",
+      "hoursBucket": "travel",
+      "unitLabel": "trips",
+      "items": [
+        { "name": "Trips to measure", "perKm": 2.8 },
+        { "name": "Trips in ute",     "perKm": 2.8 },
+        { "name": "Trips in truck",   "perKm": 3.5 }
+      ]
+    }
+  ],
+
+  "otherLabourRates": {
+    "CNC Cut/Edging": 66,
+    "Sand & Prepare": 86,
+    "Spraying": 86,
+    "Travel - per km": 2.8
+  },
+
+  "dropdowns": {
+    "rooms": ["Kitchen", "Pantry", "Laundry", "WIR", "Ensuite", "Bathroom", "Mudroom", "Powderroom", "Kitchenette", "Office"],
+    "doorsPanels": ["None", "Matt (16mm)", "Sheen (16mm)", "Woodmatt (16mm)", "Matt (18mm)", "Sheen (18mm)", "Woodmatt (18mm)", "Veneer (2pac)", "Vinyl (S1)", "Vinyl (S2-S3)", "Vinyl (S4)", "2pac (Flat)", "2pac (S2-S3)", "2pac (S4)"],
+    "benchtops": ["None", "Laminate (matt)", "Laminate (woodmatt)", "Laminate (gloss)", "Solidsurface (white) 12mm", "Solidsurface (white) 20mm", "Solid Surface (vein) 12mm", "Solid Surface (vein) 20mm", "Timber (2pac)", "Stone (Designer) 20mm", "Stone (Designer) 40mm", "Stone (Premium) 20mm", "Stone (Premium) 40mm"],
+    "jobSize": ["Tiny", "Small", "Medium", "Large"],
+    "jobType": ["Flatpack Only", "Manufacture/Supply", "Manufacture/Install", "Install Only"],
+    "clients": ["THC", "BPM", "BP", "BBM", "DB", "Matrix", "YC"]
+  }
+}
+</script>
+<script>
+"use strict";
+/* ============================== utils.js ============================== */
+const uid = () => 'id-' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+const clamp = (n,min,max)=>Math.min(max,Math.max(min,n));
+const deepClone = o => JSON.parse(JSON.stringify(o));
+const byId = id => document.getElementById(id);
+const escapeHtml = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmtMoney(n) {
+  if (n==null || isNaN(n)) n = 0;
+  const sign = n < 0 ? '-' : '';
+  return sign + '$' + Math.abs(n).toLocaleString('en-AU', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtMoney0(n) {
+  if (n==null || isNaN(n)) n = 0;
+  const sign = n < 0 ? '-' : '';
+  return sign + '$' + Math.round(Math.abs(n)).toLocaleString('en-AU');
+}
+function fmtPct(n, dp) {
+  if (n==null || isNaN(n)) return '—';
+  return (n*100).toFixed(dp==null?1:dp) + '%';
+}
+function fmtNum(n, dp) {
+  if (n==null || isNaN(n)) return '0';
+  return Number(n).toFixed(dp==null?2:dp);
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-AU', {day:'2-digit', month:'short', year:'numeric'});
+}
+function fmtDateTime(s) {
+  const d = new Date(s);
+  return d.toLocaleDateString('en-AU') + ' ' + d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+}
+function sanitizeFilename(s) {
+  return String(s||'quote').replace(/[\\/:*?"<>|]/g,'-').trim() || 'quote';
+}
+function getPath(obj, path) {
+  return path.split('.').reduce((o,k)=> (o==null?undefined:o[k]), obj);
+}
+function setPath(obj, path, value) {
+  const parts = path.split('.');
+  let o = obj;
+  for (let i=0;i<parts.length-1;i++) { if (o[parts[i]]==null) o[parts[i]] = {}; o = o[parts[i]]; }
+  o[parts[parts.length-1]] = value;
+}
+
+/* ============================== calc.js ============================== */
+const Calc = (() => {
+  function cncPerSheet(catalogue, profileName) {
+    const profile = catalogue.cnc && catalogue.cnc[profileName];
+    if (!profile) return 0;
+    const labourRate = (catalogue.otherLabourRates && catalogue.otherLabourRates['CNC Cut/Edging']) || 0;
+    return ((labourRate/60) * profile.minsPerSheet) * (profile.costPerCutter / profile.sheetsPerCutter);
+  }
+
+  function itemRate(item, section, catalogue, quote) {
+    if (section.kind === 'board') {
+      return (item.boardCost||0) + (item.edgeCost100m||0)/4 + cncPerSheet(catalogue, item.cncProfile);
+    }
+    if (section.kind === 'travel') {
+      return (quote.kmFromFactory||0) * (item.perKm||0);
+    }
+    return item.rate || 0; // simple | labour
+  }
+
+  function sectionQtyMap(room, sectionId) {
+    return (room.qty && room.qty[sectionId]) || {};
+  }
+
+  function sumQty(room, section) {
+    const m = sectionQtyMap(room, section.id);
+    let s = 0;
+    for (const k in m) s += (Number(m[k]) || 0);
+    return s;
+  }
+
+  function sectionTotal(room, section, catalogue, quote) {
+    const m = sectionQtyMap(room, section.id);
+    let total = 0;
+    for (const item of section.items) {
+      const q = Number(m[item.name]) || 0;
+      if (!q) continue;
+      total += q * itemRate(item, section, catalogue, quote);
+    }
+    return total;
+  }
+
+  function bucketTotal(bySection, catalogue, bucket) {
+    let s = 0;
+    for (const section of catalogue.sections) if (section.costBucket === bucket) s += (bySection[section.id]||0);
+    return s;
+  }
+
+  function overheadHourlyRate(catalogue) {
+    const o = catalogue.overhead;
+    if (!o || !o.jobsPerDay || !o.hoursPerDay) return 0;
+    return o.dailyRunningCost / o.jobsPerDay / o.hoursPerDay;
+  }
+
+  function computeRoom(room, catalogue, quote) {
+    const bySection = {};
+    for (const section of catalogue.sections) bySection[section.id] = sectionTotal(room, section, catalogue, quote);
+
+    const labourOffice = bucketTotal(bySection, catalogue, 'labourOffice');
+    const labourWorkshop = bucketTotal(bySection, catalogue, 'labourWorkshop');
+    const materials = bucketTotal(bySection, catalogue, 'materials');
+    const travelCost = bucketTotal(bySection, catalogue, 'overheads');
+
+    let officeHoursRaw=0, factoryHoursRaw=0, siteHoursRaw=0, travelQtyRaw=0;
+    for (const section of catalogue.sections) {
+      if (section.hoursBucket === 'office') officeHoursRaw += sumQty(room, section);
+      else if (section.hoursBucket === 'factory') factoryHoursRaw += sumQty(room, section);
+      else if (section.hoursBucket === 'site') siteHoursRaw += sumQty(room, section);
+      else if (section.hoursBucket === 'travel') travelQtyRaw += sumQty(room, section);
+    }
+    const officeHours = officeHoursRaw;
+    const factoryHours = factoryHoursRaw / 2;
+    const siteHours = siteHoursRaw / 2;
+    const travelHours = ((travelQtyRaw * (quote.kmFromFactory||0)) / 60) * 2;
+
+    const ohRate = overheadHourlyRate(catalogue);
+    const overheadRecovery = (officeHours+factoryHours+siteHours+travelHours) * ohRate;
+    const overheads = overheadRecovery + travelCost;
+
+    const tiers = catalogue.clientTiers || [];
+    const tier = tiers.find(t=>t.code===quote.clientTier) || tiers[0] || {materialMarkup:1};
+    const markupFactor = tier.materialMarkup;
+    const markup = materials*markupFactor - materials;
+
+    const base = labourOffice + labourWorkshop + materials + markup + overheads;
+    const adjustPct = Number(room.adjust) || 0;
+    const adjustFactor = 1 + adjustPct;
+    const adjust = base*adjustFactor - base;
+
+    const exGst = base + adjust;
+    const incGst = exGst * (1 + (catalogue.gstRate||0));
+
+    const cf = catalogue.cogs || {labourFactor:0.65, materialsFactor:1.10};
+    const cogs = labourOffice*cf.labourFactor + labourWorkshop*cf.labourFactor + materials*cf.materialsFactor + overheads;
+    const cogsRatio = incGst > 0 ? cogs/incGst : 0;
+    const profit = incGst - cogs;
+
+    const warnCogs = incGst > 0 && cogsRatio > ((catalogue.warnings && catalogue.warnings.roomCogsRatioMax) != null ? catalogue.warnings.roomCogsRatioMax : 0.8);
+
+    return { bySection, labourOffice, labourWorkshop, materials, travelCost,
+      officeHours, factoryHours, siteHours, travelHours,
+      overheadRecovery, overheads, markupFactor, markup, base, adjust, exGst, incGst,
+      cogs, cogsRatio, profit, warnCogs };
+  }
+
+  function computeBonus(jobIncGst, roomResults, catalogue) {
+    const b = catalogue.bonus || {poolPctOfTotal:0.01, poolMultiplier:1.5, split:{office:.5,factory:.25,site:.25}};
+    const adjustSum = roomResults.reduce((s,r)=>s+r.adjust,0);
+    const pool = (jobIncGst * b.poolPctOfTotal * b.poolMultiplier) + (adjustSum/2);
+    return { pool, office: pool*b.split.office, factory: pool*b.split.factory, site: pool*b.split.site };
+  }
+
+  function computeQuote(quote, catalogue) {
+    const rooms = (quote.rooms||[]).map(room => ({ room, r: computeRoom(room, catalogue, quote) }));
+    const jobExGst = rooms.reduce((s,x)=>s+x.r.exGst,0);
+    const jobIncGst = rooms.reduce((s,x)=>s+x.r.incGst,0);
+
+    const share = {
+      office: rooms.reduce((s,x)=>s+x.r.labourOffice,0)*1.1,
+      labour: rooms.reduce((s,x)=>s+x.r.labourWorkshop,0)*1.1,
+      materials: rooms.reduce((s,x)=>s+x.r.materials,0)*1.1,
+      markup: (rooms.reduce((s,x)=>s+x.r.markup,0) + rooms.reduce((s,x)=>s+x.r.adjust,0))*1.1,
+      overheads: rooms.reduce((s,x)=>s+x.r.overheads,0)*1.1,
+    };
+    const shareTotal = share.office+share.labour+share.materials+share.markup+share.overheads;
+
+    const hours = {
+      office: rooms.reduce((s,x)=>s+x.r.officeHours,0),
+      factory: rooms.reduce((s,x)=>s+x.r.factoryHours,0),
+      site: rooms.reduce((s,x)=>s+x.r.siteHours,0),
+      travel: rooms.reduce((s,x)=>s+x.r.travelHours,0),
+    };
+
+    const bonus = computeBonus(jobIncGst, rooms.map(x=>x.r), catalogue);
+
+    const warnings = [];
+    rooms.forEach(x => { if (x.r.warnCogs) warnings.push({ severity:'red', roomId:x.room.id, roomName:x.room.name,
+      message: 'Room profit too low in ' + x.room.name + '. Decrease cost of goods or increase markup.' }); });
+    const jmax = (catalogue.warnings && catalogue.warnings.jobMaterialsRatioMax) != null ? catalogue.warnings.jobMaterialsRatioMax : 0.56;
+    if (shareTotal > 0 && share.materials/shareTotal > jmax) {
+      warnings.push({ severity:'amber', message:'Materials are too high a share of total job cost.' });
+    }
+
+    return { rooms, jobExGst, jobIncGst, share, shareTotal, hours, bonus, warnings };
+  }
+
+  return { cncPerSheet, itemRate, sectionTotal, sumQty, bucketTotal, overheadHourlyRate, computeRoom, computeBonus, computeQuote };
+})();
+
+/* ============================== reprice diff (pure) ============================== */
+function diffCatalogues(oldCat, newCat, ctxQuote) {
+  const changes = [];
+  const quote = ctxQuote || { kmFromFactory: (newCat.travel && newCat.travel.defaultKmFromFactory) || 0 };
+  oldCat.sections.forEach(oldSection => {
+    const newSection = newCat.sections.find(s=>s.id===oldSection.id);
+    oldSection.items.forEach(oldItem => {
+      const oldRate = Calc.itemRate(oldItem, oldSection, oldCat, quote);
+      if (!newSection) { changes.push({section:oldSection.title, item:oldItem.name, oldRate, newRate:null, removed:true}); return; }
+      const newItem = newSection.items.find(i=>i.name===oldItem.name);
+      if (!newItem) { changes.push({section:oldSection.title, item:oldItem.name, oldRate, newRate:null, removed:true}); return; }
+      const newRate = Calc.itemRate(newItem, newSection, newCat, quote);
+      if (Math.abs(oldRate-newRate) > 0.0001) changes.push({section:oldSection.title, item:oldItem.name, oldRate, newRate, delta:newRate-oldRate});
+    });
+  });
+  return changes;
+}
+
+/* ============================== db.js ============================== */
+const DB = (() => {
+  const DB_NAME = 'joinery-quoter';
+  const DB_VERSION = 1;
+  let dbp = null;
+  let memoryFallback = false;
+  const memStore = { quotes: new Map(), catalogue: null, meta: new Map() };
+
+  function open() {
+    if (dbp) return dbp;
+    dbp = new Promise((resolve) => {
+      if (!window.indexedDB) { memoryFallback = true; resolve(null); return; }
+      let req;
+      try { req = indexedDB.open(DB_NAME, DB_VERSION); } catch(e) { memoryFallback = true; resolve(null); return; }
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('quotes')) db.createObjectStore('quotes', {keyPath:'id'});
+        if (!db.objectStoreNames.contains('catalogue')) db.createObjectStore('catalogue');
+        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => { memoryFallback = true; resolve(null); };
+      req.onblocked = () => { memoryFallback = true; resolve(null); };
+    });
+    return dbp;
+  }
+
+  async function tx(storeName, mode) {
+    const db = await open();
+    if (!db) return null;
+    try { return db.transaction(storeName, mode).objectStore(storeName); } catch(e) { return null; }
+  }
+
+  async function getAllQuotes() {
+    const store = await tx('quotes','readonly');
+    if (!store) return Array.from(memStore.quotes.values());
+    return new Promise((resolve)=>{
+      const req = store.getAll();
+      req.onsuccess = ()=>resolve(req.result||[]);
+      req.onerror = ()=>resolve(Array.from(memStore.quotes.values()));
+    });
+  }
+
+  async function putQuote(quote) {
+    memStore.quotes.set(quote.id, quote);
+    const store = await tx('quotes','readwrite');
+    if (!store) return;
+    return new Promise((resolve)=>{ const req = store.put(quote); req.onsuccess=()=>resolve(); req.onerror=()=>resolve(); });
+  }
+
+  async function deleteQuote(id) {
+    memStore.quotes.delete(id);
+    const store = await tx('quotes','readwrite');
+    if (!store) return;
+    return new Promise((resolve)=>{ const req = store.delete(id); req.onsuccess=()=>resolve(); req.onerror=()=>resolve(); });
+  }
+
+  async function getCatalogue() {
+    const store = await tx('catalogue','readonly');
+    if (!store) return memStore.catalogue;
+    return new Promise((resolve)=>{ const req = store.get('current'); req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>resolve(null); });
+  }
+
+  async function putCatalogue(cat) {
+    memStore.catalogue = cat;
+    const store = await tx('catalogue','readwrite');
+    if (!store) return;
+    return new Promise((resolve)=>{ const req = store.put(cat,'current'); req.onsuccess=()=>resolve(); req.onerror=()=>resolve(); });
+  }
+
+  async function getMeta(key) {
+    const store = await tx('meta','readonly');
+    if (!store) return memStore.meta.get(key);
+    return new Promise((resolve)=>{ const req = store.get(key); req.onsuccess=()=>resolve(req.result); req.onerror=()=>resolve(memStore.meta.get(key)); });
+  }
+
+  async function setMeta(key, val) {
+    memStore.meta.set(key, val);
+    const store = await tx('meta','readwrite');
+    if (!store) return;
+    return new Promise((resolve)=>{ const req = store.put(val, key); req.onsuccess=()=>resolve(); req.onerror=()=>resolve(); });
+  }
+
+  return { open, getAllQuotes, putQuote, deleteQuote, getCatalogue, putCatalogue, getMeta, setMeta, isMemoryFallback: ()=>memoryFallback };
+})();
+
+/* ============================== stats.js ============================== */
+const Stats = (() => {
+  function median(arr) {
+    if (!arr || !arr.length) return null;
+    const s = [...arr].sort((a,b)=>a-b);
+    const mid = Math.floor(s.length/2);
+    return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
+  }
+  function percentile(arr, p) {
+    if (!arr || !arr.length) return null;
+    const s = [...arr].sort((a,b)=>a-b);
+    const idx = clamp(Math.round((p/100)*(s.length-1)),0,s.length-1);
+    return s[idx];
+  }
+  function mean(arr) { return (arr && arr.length) ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+  function monthKey(dateStr) { const d = new Date(dateStr); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+  function filterQuotes(quotes, filter) {
+    filter = filter || {};
+    return quotes.filter(q => {
+      if (filter.client && q.client !== filter.client) return false;
+      if (filter.tier && q.clientTier !== filter.tier) return false;
+      if (filter.status && q.status !== filter.status) return false;
+      if (filter.dateFrom && new Date(q.createdAt) < new Date(filter.dateFrom)) return false;
+      if (filter.dateTo && new Date(q.createdAt) > new Date(filter.dateTo)) return false;
+      return true;
+    });
+  }
+
+  function pipeline(quotes, resultsById, filter) {
+    const inRange = filterQuotes(quotes, filter);
+    const n = inRange.length;
+    const totalIncGst = inRange.reduce((s,q)=>s+resultsById[q.id].jobIncGst,0);
+    const won = inRange.filter(q=>q.status==='won');
+    const decided = inRange.filter(q=>q.status==='won'||q.status==='lost');
+    const wonValue = won.reduce((s,q)=>s+resultsById[q.id].jobIncGst,0);
+    const winRate = decided.length ? won.length/decided.length : null;
+    const daysToDecision = decided.filter(q=>q.sentAt&&q.decidedAt).map(q=>(new Date(q.decidedAt)-new Date(q.sentAt))/86400000);
+    const values = inRange.map(q=>resultsById[q.id].jobIncGst);
+    return { n, totalIncGst, wonValue, winCount: won.length, decidedCount: decided.length,
+      winRate, medianDaysToDecision: median(daysToDecision), avgValue: mean(values), medianValue: median(values) };
+  }
+
+  function priceTrendByRoomType(quotes, resultsById, filter, includeDrafts) {
+    const inRange = filterQuotes(quotes, filter).filter(q=>includeDrafts || q.status!=='draft');
+    const byRoomMonth = {};
+    inRange.forEach(q=>{
+      const res = resultsById[q.id];
+      res.rooms.forEach(x=>{
+        const type = x.room.name || 'Room';
+        const m = monthKey(q.createdAt);
+        byRoomMonth[type] = byRoomMonth[type]||{};
+        byRoomMonth[type][m] = byRoomMonth[type][m]||[];
+        if (x.r.incGst > 0.005) byRoomMonth[type][m].push(x.r.incGst);
+      });
+    });
+    const series = {};
+    for (const type in byRoomMonth) {
+      const months = Object.keys(byRoomMonth[type]).sort();
+      const pts = months.map(m => ({ month:m, n:byRoomMonth[type][m].length, median: median(byRoomMonth[type][m]) })).filter(pt=>pt.n>=3);
+      if (pts.length) series[type] = pts;
+    }
+    return series;
+  }
+
+  function rateDrift(quotes, catalogue) {
+    const seen = {};
+    const sorted = [...quotes].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    sorted.forEach(q=>{
+      const cat = q.catalogueSnapshot;
+      if (!cat) return;
+      cat.sections.forEach(section=>{
+        section.items.forEach(item=>{
+          const rate = Calc.itemRate(item, section, cat, q);
+          const key = section.id+'::'+item.name;
+          if (!seen[key]) seen[key] = { section: section.title, sectionId: section.id, item: item.name, firstRate: rate, firstDate: q.createdAt };
+        });
+      });
+    });
+    const rows = [];
+    for (const key in seen) {
+      const s = seen[key];
+      let currentRate = null;
+      const curSection = catalogue.sections.find(sec=>sec.id===s.sectionId);
+      if (curSection) {
+        const curItem = curSection.items.find(i=>i.name===s.item);
+        if (curItem) currentRate = Calc.itemRate(curItem, curSection, catalogue, {kmFromFactory:(catalogue.travel&&catalogue.travel.defaultKmFromFactory)||0});
+      }
+      const deltaPct = (currentRate!=null && s.firstRate) ? (currentRate-s.firstRate)/s.firstRate : null;
+      rows.push({ section:s.section, item:s.item, firstRate:s.firstRate, firstDate:s.firstDate, currentRate, deltaPct });
+    }
+    rows.sort((a,b)=>(b.deltaPct==null?-999:b.deltaPct)-(a.deltaPct==null?-999:a.deltaPct));
+    return rows;
+  }
+
+  function costMixDrift(quotes, resultsById, filter) {
+    const inRange = filterQuotes(quotes, filter);
+    const byQuarter = {};
+    inRange.forEach(q=>{
+      const d = new Date(q.createdAt);
+      const qtr = d.getFullYear()+'-Q'+(Math.floor(d.getMonth()/3)+1);
+      byQuarter[qtr] = byQuarter[qtr] || {office:0,labour:0,materials:0,markup:0,overheads:0,total:0};
+      const res = resultsById[q.id];
+      byQuarter[qtr].office += res.share.office;
+      byQuarter[qtr].labour += res.share.labour;
+      byQuarter[qtr].materials += res.share.materials;
+      byQuarter[qtr].markup += res.share.markup;
+      byQuarter[qtr].overheads += res.share.overheads;
+      byQuarter[qtr].total += res.shareTotal;
+    });
+    return Object.keys(byQuarter).sort().map(qtr=>{
+      const b = byQuarter[qtr]; const t = b.total || 1;
+      return { quarter:qtr, office:b.office/t, labour:b.labour/t, materials:b.materials/t, markup:b.markup/t, overheads:b.overheads/t };
+    });
+  }
+
+  function marginHealth(quotes, resultsById, filter) {
+    const inRange = filterQuotes(quotes, filter);
+    const ratios = []; const overThreshold = [];
+    inRange.forEach(q=>{
+      const res = resultsById[q.id];
+      res.rooms.forEach(x=>{
+        if (x.r.incGst > 0.005) {
+          ratios.push(x.r.cogsRatio);
+          if (x.r.warnCogs) overThreshold.push({ quoteId:q.id, jobName:q.jobName, room:x.room.name, cogsRatio:x.r.cogsRatio });
+        }
+      });
+    });
+    return { ratios, overThreshold };
+  }
+
+  function benchmark(quotes, resultsById, roomType, jobSize, includeDrafts) {
+    const prices = [];
+    quotes.forEach(q=>{
+      if (!includeDrafts && q.status==='draft') return;
+      const res = resultsById[q.id];
+      res.rooms.forEach(x=>{
+        if (x.room.name===roomType && (!jobSize || (x.room.spec && x.room.spec.jobSize)===jobSize) && x.r.incGst>0.005) prices.push(x.r.incGst);
+      });
+    });
+    return { n: prices.length, median: median(prices), p25: percentile(prices,25), p75: percentile(prices,75) };
+  }
+
+  function clientTierMix(quotes, resultsById, filter) {
+    const inRange = filterQuotes(quotes, filter);
+    const byClient = {};
+    inRange.forEach(q=>{
+      const key = q.client || '—';
+      byClient[key] = byClient[key] || {value:0,won:0,decided:0};
+      byClient[key].value += resultsById[q.id].jobIncGst;
+      if (q.status==='won') byClient[key].won++;
+      if (q.status==='won'||q.status==='lost') byClient[key].decided++;
+    });
+    return byClient;
+  }
+
+  function discounting(quotes, resultsById, filter) {
+    const inRange = filterQuotes(quotes, filter);
+    const buckets = { list:{label:'List price',n:0,won:0,decided:0}, small:{label:'0–10% off',n:0,won:0,decided:0}, big:{label:'>10% off',n:0,won:0,decided:0} };
+    inRange.forEach(q=>{
+      const res = resultsById[q.id];
+      const avgAdjust = res.rooms.length ? res.rooms.reduce((s,x)=>s+(x.room.adjust||0),0)/res.rooms.length : 0;
+      const bucket = avgAdjust>=0 ? 'list' : (avgAdjust>=-0.1 ? 'small' : 'big');
+      buckets[bucket].n++;
+      if (q.status==='won') buckets[bucket].won++;
+      if (q.status==='won'||q.status==='lost') buckets[bucket].decided++;
+    });
+    return buckets;
+  }
+
+  return { median, percentile, mean, monthKey, filterQuotes, pipeline, priceTrendByRoomType, rateDrift, costMixDrift, marginHealth, benchmark, clientTierMix, discounting };
+})();
+
+/* ============================== registry.js ============================== */
+const Registry = (() => {
+  const fmt = n => (n==null||isNaN(n)) ? '—' : Number(n).toFixed(2);
+  const pct = n => (n==null||isNaN(n)) ? '—' : (Number(n)*100).toFixed(1)+'%';
+  function addDaysLabel(days){ const d=new Date(); d.setDate(d.getDate()+Number(days||0)); return d.toLocaleDateString('en-AU'); }
+  function advisoryRate(ctx) {
+    const h = ctx.hourlyRateBuilder;
+    return h.baseRate + h.baseRate*((h.superPct+h.workcoverPct+h.bonusPct+h.profitPct+h.underquotePct)/100);
+  }
+
+  const fields = [
+    { key:'company.name', label:'Business name', unit:'', type:'text', group:'company', default:'',
+      help:'Appears on every PDF quote header.', affects:['PDF header'], formula:null,
+      example: ctx => ctx.company.name ? ('Quotes are headed "'+ctx.company.name+'".') : 'No business name set yet — the PDF header will be blank.' },
+    { key:'company.abn', label:'ABN', unit:'', type:'text', group:'company', default:'',
+      help:'Shown under the business name on the PDF.', affects:['PDF header'], formula:null,
+      example: ctx => ctx.company.abn ? ('ABN '+ctx.company.abn+' on every PDF.') : 'No ABN set.' },
+    { key:'company.phone', label:'Phone', unit:'', type:'text', group:'company', default:'',
+      help:'Shown on the PDF header.', affects:['PDF header'], formula:null, example: ctx=>ctx.company.phone||'Not set.' },
+    { key:'company.email', label:'Email', unit:'', type:'text', group:'company', default:'',
+      help:'Shown on the PDF header.', affects:['PDF header'], formula:null, example: ctx=>ctx.company.email||'Not set.' },
+    { key:'company.quoteValidDays', label:'Quote valid for', unit:'days', type:'number', min:1, group:'company', default:30,
+      help:'How many days after the quote date the price stands. Printed as a valid-until date on the PDF.',
+      affects:['PDF valid-until date'], formula:'validUntil = quoteDate + quoteValidDays',
+      example: ctx => 'A quote dated today is valid until '+addDaysLabel(ctx.company.quoteValidDays)+'.' },
+    { key:'company.terms', label:'Terms text', unit:'', type:'textarea', group:'company', default:'',
+      help:'Printed at the foot of every PDF quote.', affects:['PDF terms block'], formula:null,
+      example: ctx=>ctx.company.terms||'No terms text set.' },
+
+    { key:'overhead.dailyRunningCost', label:'Daily running cost', unit:'$/day', type:'number', min:0, group:'overhead', default:1120,
+      help:'Everything it costs to open the doors for a day — rent, power, insurance, vehicles, admin wages, software. Not materials, not chargeable labour.',
+      affects:['overheadHourlyRate','overheads(room)','cogs(room)'],
+      formula:'overheadHourlyRate = dailyRunningCost / jobsPerDay / hoursPerDay',
+      example: ctx => '$'+fmt(ctx.overhead.dailyRunningCost)+' ÷ '+ctx.overhead.jobsPerDay+' jobs ÷ '+ctx.overhead.hoursPerDay+' h = $'+fmt(Calc.overheadHourlyRate(ctx))+'/hr recovered on every quoted hour.' },
+    { key:'overhead.jobsPerDay', label:'Jobs per day', unit:'jobs', type:'number', min:0.01, group:'overhead', default:2.4,
+      help:'How many jobs, on average, share a day of running costs.', affects:['overheadHourlyRate'],
+      formula:'overheadHourlyRate = dailyRunningCost / jobsPerDay / hoursPerDay',
+      example: ctx => 'Fewer jobs per day means each carries a bigger share: $'+fmt(Calc.overheadHourlyRate(ctx))+'/hr currently.' },
+    { key:'overhead.hoursPerDay', label:'Hours per day', unit:'hrs', type:'number', min:0.1, group:'overhead', default:8,
+      help:'A working day, in hours, used to spread the daily running cost.', affects:['overheadHourlyRate'],
+      formula:'overheadHourlyRate = dailyRunningCost / jobsPerDay / hoursPerDay',
+      example: ctx => '$'+fmt(Calc.overheadHourlyRate(ctx))+'/hr at '+ctx.overhead.hoursPerDay+' h/day.' },
+
+    { key:'cnc.whiteboard.minsPerSheet', label:'Whiteboard — minutes per sheet', unit:'min', type:'number', min:0, group:'cnc', default:20,
+      help:'CNC cutting time for a whiteboard sheet.', affects:['cncPerSheet(whiteboard)','boardEdge rates'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => '$'+fmt(Calc.cncPerSheet(ctx,'whiteboard'))+' CNC cost added to every whiteboard sheet.' },
+    { key:'cnc.whiteboard.sheetsPerCutter', label:'Whiteboard — sheets per cutter life', unit:'sheets', type:'number', min:1, group:'cnc', default:60,
+      help:'How many sheets one cutter lasts before replacement.', affects:['cncPerSheet(whiteboard)'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => 'Cutter cost spread over '+ctx.cnc.whiteboard.sheetsPerCutter+' sheets.' },
+    { key:'cnc.whiteboard.costPerCutter', label:'Whiteboard — cutter cost', unit:'$', type:'number', min:0, group:'cnc', default:95,
+      help:'Replacement cost of the cutter used on whiteboard.', affects:['cncPerSheet(whiteboard)'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => '$'+fmt(Calc.cncPerSheet(ctx,'whiteboard'))+' per sheet.' },
+    { key:'cnc.standard.minsPerSheet', label:'Standard — minutes per sheet', unit:'min', type:'number', min:0, group:'cnc', default:25,
+      help:'CNC cutting time for a standard (non-whiteboard) sheet.', affects:['cncPerSheet(standard)'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => '$'+fmt(Calc.cncPerSheet(ctx,'standard'))+' CNC cost added to every standard sheet.' },
+    { key:'cnc.standard.sheetsPerCutter', label:'Standard — sheets per cutter life', unit:'sheets', type:'number', min:1, group:'cnc', default:70,
+      help:'How many sheets one cutter lasts before replacement.', affects:['cncPerSheet(standard)'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => 'Cutter cost spread over '+ctx.cnc.standard.sheetsPerCutter+' sheets.' },
+    { key:'cnc.standard.costPerCutter', label:'Standard — cutter cost', unit:'$', type:'number', min:0, group:'cnc', default:92,
+      help:'Replacement cost of the cutter used on standard sheets.', affects:['cncPerSheet(standard)'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => '$'+fmt(Calc.cncPerSheet(ctx,'standard'))+' per sheet.' },
+    { key:'otherLabourRates.Sand & Prepare', label:'Sand & Prepare rate', unit:'$/hr', type:'number', min:0, group:'labour', default:86,
+      help:'Charge-out rate for sanding and preparation work.', affects:['available as a catalogue item rate'], formula:null,
+      example: ctx => '$'+fmt(ctx.otherLabourRates['Sand & Prepare'])+'/hr.' },
+    { key:'otherLabourRates.Spraying', label:'Spraying rate', unit:'$/hr', type:'number', min:0, group:'labour', default:86,
+      help:'Charge-out rate for spray finishing.', affects:['available as a catalogue item rate'], formula:null,
+      example: ctx => '$'+fmt(ctx.otherLabourRates['Spraying'])+'/hr.' },
+    { key:'otherLabourRates.Travel - per km', label:'General travel rate', unit:'$/km', type:'number', min:0, group:'labour', default:2.8,
+      help:'Fallback per-km labour travel rate, distinct from the vehicle-specific rates under Travel.', affects:['reference only'], formula:null,
+      example: ctx => '$'+fmt(ctx.otherLabourRates['Travel - per km'])+'/km.' },
+    { key:'otherLabourRates.CNC Cut/Edging', label:'CNC operator rate', unit:'$/hr', type:'number', min:0, group:'cnc', default:66,
+      help:'Charge-out rate for the person running the CNC — feeds every board rate.', affects:['cncPerSheet(all profiles)'],
+      formula:'cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)',
+      example: ctx => 'At $'+fmt(ctx.otherLabourRates['CNC Cut/Edging'])+'/hr: whiteboard $'+fmt(Calc.cncPerSheet(ctx,'whiteboard'))+', standard $'+fmt(Calc.cncPerSheet(ctx,'standard'))+' per sheet.' },
+
+    { key:'travel.defaultKmFromFactory', label:'Default km from factory', unit:'km', type:'number', min:0, group:'travel', default:25,
+      help:'Pre-filled on a new quote; editable per job.', affects:['travel rates','overheadRecovery (travel hours)'],
+      formula:'travelHours = (tripQty × kmFromFactory / 60) × 2', example: ctx => 'A new quote starts at '+ctx.travel.defaultKmFromFactory+' km.' },
+    { key:'travel.perKmRates.Trips to measure', label:'Trips to measure — rate', unit:'$/km', type:'number', min:0, group:'travel', default:2.8,
+      help:'Per-km cost for a measure trip.', affects:['travel section rate'], formula:'rate = kmFromFactory × perKm',
+      example: ctx => 'At '+ctx.travel.defaultKmFromFactory+' km: $'+fmt(ctx.travel.defaultKmFromFactory*ctx.travel.perKmRates['Trips to measure'])+' per trip.' },
+    { key:'travel.perKmRates.Trips in ute', label:'Trips in ute — rate', unit:'$/km', type:'number', min:0, group:'travel', default:2.8,
+      help:'Per-km cost for a ute trip.', affects:['travel section rate'], formula:'rate = kmFromFactory × perKm',
+      example: ctx => 'At '+ctx.travel.defaultKmFromFactory+' km: $'+fmt(ctx.travel.defaultKmFromFactory*ctx.travel.perKmRates['Trips in ute'])+' per trip.' },
+    { key:'travel.perKmRates.Trips in truck', label:'Trips in truck — rate', unit:'$/km', type:'number', min:0, group:'travel', default:3.5,
+      help:'Per-km cost for a truck trip.', affects:['travel section rate'], formula:'rate = kmFromFactory × perKm',
+      example: ctx => 'At '+ctx.travel.defaultKmFromFactory+' km: $'+fmt(ctx.travel.defaultKmFromFactory*ctx.travel.perKmRates['Trips in truck'])+' per trip.' },
+
+    { key:'cogs.labourFactor', label:'Labour cost factor', unit:'×', type:'number', min:0.3, max:1.5, group:'cogs', default:0.65,
+      help:"The share of a charged labour hour that is real wage cost — the rest is margin already built into your hourly rate. Used only to calculate internal COGS/profit, never shown to the client.",
+      affects:['cogs(room)'], formula:'cogs += (labourOffice + labourWorkshop) × labourFactor',
+      example: ctx => 'A $100 charged labour hour costs about $'+fmt(100*ctx.cogs.labourFactor)+' in wages by this factor.' },
+    { key:'cogs.materialsFactor', label:'Materials cost factor', unit:'×', type:'number', min:0.3, max:1.5, group:'cogs', default:1.10,
+      help:'Materials at cost plus a loading for wastage and handling, used to estimate true cost of goods. Independent of the client markup.',
+      affects:['cogs(room)'], formula:'cogs += materials × materialsFactor',
+      example: ctx => '$100 of materials is treated as costing $'+fmt(100*ctx.cogs.materialsFactor)+' once wastage is counted.' },
+    { key:'warnings.roomCogsRatioMax', label:'Room COGS warning threshold', unit:'%', type:'number', min:0, max:1, step:0.01, group:'cogs', default:0.80,
+      help:"If a room's cost of goods rises above this share of its price, the room is flagged.", affects:['room warnings'],
+      formula:'warn if cogsRatio > roomCogsRatioMax', example: ctx => 'Rooms over '+pct(ctx.warnings.roomCogsRatioMax)+' COGS are flagged red.' },
+    { key:'warnings.jobMaterialsRatioMax', label:'Job materials-share warning threshold', unit:'%', type:'number', min:0, max:1, step:0.01, group:'cogs', default:0.56,
+      help:'If materials rise above this share of the whole job, a job-level warning is shown.', affects:['job warnings'],
+      formula:'warn if share.materials / shareTotal > jobMaterialsRatioMax',
+      example: ctx => 'Jobs over '+pct(ctx.warnings.jobMaterialsRatioMax)+' materials share are flagged amber.' },
+
+    { key:'bonus.poolPctOfTotal', label:'Bonus pool — % of job total', unit:'%', type:'number', min:0, max:0.2, step:0.001, group:'bonus', default:0.01,
+      help:'Base share of the inc-GST job total that feeds the staff bonus pool.', affects:['bonus pool'],
+      formula:'pool = jobIncGst × poolPctOfTotal × poolMultiplier + (Σ room adjust / 2)',
+      example: ctx => 'On a $10,000 job: $'+fmt(10000*ctx.bonus.poolPctOfTotal*ctx.bonus.poolMultiplier)+' base pool.' },
+    { key:'bonus.poolMultiplier', label:'Bonus pool — multiplier', unit:'×', type:'number', min:0, group:'bonus', default:1.5,
+      help:'Multiplies the base bonus percentage.', affects:['bonus pool'],
+      formula:'pool = jobIncGst × poolPctOfTotal × poolMultiplier + (Σ room adjust / 2)',
+      example: ctx => 'Multiplier currently '+ctx.bonus.poolMultiplier+'×.' },
+    { key:'bonus.split.office', label:'Bonus split — office', unit:'share', type:'number', min:0, max:1, step:0.05, group:'bonus', default:0.5,
+      help:"Office's share of the bonus pool.", affects:['bonus.office'], formula:'office = pool × split.office',
+      example: ctx => 'Office gets '+pct(ctx.bonus.split.office)+' of the pool.' },
+    { key:'bonus.split.factory', label:'Bonus split — factory', unit:'share', type:'number', min:0, max:1, step:0.05, group:'bonus', default:0.25,
+      help:"Factory's share of the bonus pool.", affects:['bonus.factory'], formula:'factory = pool × split.factory',
+      example: ctx => 'Factory gets '+pct(ctx.bonus.split.factory)+' of the pool.' },
+    { key:'bonus.split.site', label:'Bonus split — site', unit:'share', type:'number', min:0, max:1, step:0.05, group:'bonus', default:0.25,
+      help:"Site's share of the bonus pool.", affects:['bonus.site'], formula:'site = pool × split.site',
+      example: ctx => 'Site gets '+pct(ctx.bonus.split.site)+' of the pool.' },
+
+    { key:'hourlyRateBuilder.baseRate', label:'Base rate', unit:'$/hr', type:'number', min:0, group:'advisory', default:40,
+      help:'Starting wage before loadings. This calculator is advisory only — it does not feed pricing.', affects:['suggested hourly rate'],
+      formula:'suggested = baseRate + super + workcover + bonus + profit + underquote allowance',
+      example: ctx => 'Suggested hourly: $'+fmt(advisoryRate(ctx))+'/hr (not applied to quotes).' },
+    { key:'hourlyRateBuilder.efficiency', label:'Efficiency', unit:'×', type:'number', min:0, max:1, step:0.01, group:'advisory', default:0.75,
+      help:'Productive fraction of a paid hour.', affects:['suggested hourly rate'], formula:'shown for reference only',
+      example: ctx => pct(ctx.hourlyRateBuilder.efficiency)+' of a paid hour is productive.' },
+    { key:'hourlyRateBuilder.superPct', label:'Superannuation', unit:'%', type:'number', min:0, group:'advisory', default:14,
+      help:'Super loading on the base rate.', affects:['suggested hourly rate'], formula:'suggested += super% × baseRate',
+      example: ctx => '+$'+fmt(ctx.hourlyRateBuilder.baseRate*ctx.hourlyRateBuilder.superPct/100)+'/hr.' },
+    { key:'hourlyRateBuilder.workcoverPct', label:'WorkCover', unit:'%', type:'number', min:0, group:'advisory', default:3.5,
+      help:'WorkCover loading on the base rate.', affects:['suggested hourly rate'], formula:'suggested += workcover% × baseRate',
+      example: ctx => '+$'+fmt(ctx.hourlyRateBuilder.baseRate*ctx.hourlyRateBuilder.workcoverPct/100)+'/hr.' },
+    { key:'hourlyRateBuilder.bonusPct', label:'Bonus loading', unit:'%', type:'number', min:0, group:'advisory', default:0,
+      help:'Bonus loading on the base rate.', affects:['suggested hourly rate'], formula:'suggested += bonus% × baseRate',
+      example: ctx => '+$'+fmt(ctx.hourlyRateBuilder.baseRate*ctx.hourlyRateBuilder.bonusPct/100)+'/hr.' },
+    { key:'hourlyRateBuilder.profitPct', label:'Profit loading', unit:'%', type:'number', min:0, group:'advisory', default:30,
+      help:'Profit loading on the base rate.', affects:['suggested hourly rate'], formula:'suggested += profit% × baseRate',
+      example: ctx => '+$'+fmt(ctx.hourlyRateBuilder.baseRate*ctx.hourlyRateBuilder.profitPct/100)+'/hr.' },
+    { key:'hourlyRateBuilder.underquotePct', label:'Underquote allowance', unit:'%', type:'number', min:0, group:'advisory', default:20,
+      help:'Allowance for jobs that run over.', affects:['suggested hourly rate'], formula:'suggested += underquote% × baseRate',
+      example: ctx => '+$'+fmt(ctx.hourlyRateBuilder.baseRate*ctx.hourlyRateBuilder.underquotePct/100)+'/hr.' },
+  ];
+
+  function get(catalogue, key){ return getPath(catalogue, key); }
+  function set(catalogue, key, value){ setPath(catalogue, key, value); }
+  function groupFields(group){ return fields.filter(f=>f.group===group); }
+
+  const groupInfo = {
+    company:  { title:'Company', intro:'Shown on every PDF quote — the client-facing identity of the business.' },
+    overhead: { title:'Overhead recovery', intro:'Your quotes recover fixed costs through hours, not a percentage. Every hour you quote carries a share of running the shop. Raise the daily cost or lower the jobs-per-day and every quote gets dearer.' },
+    cnc:      { title:'CNC', intro:'The CNC cost per sheet is built into every board & edge rate automatically — cutter wear plus operator time, spread over a sheet.' },
+    labour:   { title:'Labour rates', intro:'A few standalone labour rates that don\'t belong to a specific catalogue section. Office, Factory and Site hourly rates are edited per item in the Catalogue tab.' },
+    travel:   { title:'Travel', intro:'Travel is charged per trip, at a rate per kilometre that varies by vehicle. It also feeds the overhead recovery hours via a return-trip time estimate.' },
+    cogs:     { title:'COGS & margin', intro:'These factors estimate the true cost of a job — for your own eyes only, never printed on a client quote — and drive the two warning thresholds below.' },
+    bonus:    { title:'Bonus pool', intro:'A small share of every job funds a staff bonus pool, split between office, factory and site.' },
+    advisory: { title:'Hourly rate builder', intro:'A reference calculator for what you should be charging out labour at. Advisory only — changing it here does not change any quote price.' },
+  };
+
+  return { fields, get, set, groupFields, groupInfo, advisoryRate, fmtPct: pct, fmtMoney: fmt };
+})();
+
+/* ============================== charts.js ============================== */
+const Charts = (() => {
+  function sparkline(opts) {
+    const series = opts.series||[]; const width = opts.width||90; const height = opts.height||24; const color = opts.color||'var(--accent)';
+    if (!series.length) return '<svg width="'+width+'" height="'+height+'"></svg>';
+    const min = Math.min.apply(null, series), max = Math.max.apply(null, series);
+    const range = (max-min)||1;
+    const step = width/((series.length-1)||1);
+    const pts = series.map((v,i)=> (i*step).toFixed(1)+','+(height-((v-min)/range)*height).toFixed(1)).join(' ');
+    return '<svg width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'" preserveAspectRatio="none">'
+      +'<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/></svg>';
+  }
+
+  function lineChart(opts) {
+    const seriesMap = opts.seriesMap||{}; const width = opts.width||640; const height = opts.height||260;
+    const yFormat = opts.yFormat || (v=>v.toFixed(0));
+    const colors = opts.colors || ['#4a9eff','#7ee0a8','#e0a33e','#e05c5c','#9b7ee0','#4ad6c9','#f2a5d0','#a3d977'];
+    const pad = {l:56,r:16,t:16,b:32};
+    const allX = new Set();
+    for (const k in seriesMap) seriesMap[k].forEach(p=>allX.add(p.x));
+    const xLabels = Array.from(allX).sort();
+    if (!xLabels.length) return '<svg width="'+width+'" height="'+height+'"></svg>';
+    const allY = [];
+    for (const k in seriesMap) seriesMap[k].forEach(p=>allY.push(p.y));
+    const yMax = Math.max.apply(null, allY.concat([1])) * 1.15;
+    const innerW = width-pad.l-pad.r, innerH = height-pad.t-pad.b;
+    const xPos = x => pad.l + (xLabels.indexOf(x)/(Math.max(xLabels.length-1,1))) * innerW;
+    const yPos = y => pad.t + innerH - (y/yMax)*innerH;
+
+    let svg = '<svg width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'">';
+    for (let i=0;i<=4;i++){ const y = pad.t + innerH*(i/4);
+      svg += '<line x1="'+pad.l+'" y1="'+y+'" x2="'+(width-pad.r)+'" y2="'+y+'" stroke="var(--border)" stroke-width="1"/>';
+      svg += '<text x="'+(pad.l-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="var(--text-dim)">'+yFormat(yMax-(yMax*i/4))+'</text>';
+    }
+    const everyN = Math.max(1, Math.ceil(xLabels.length/8));
+    xLabels.forEach((x,i)=>{ if (i%everyN===0) svg += '<text x="'+xPos(x).toFixed(1)+'" y="'+(height-8)+'" text-anchor="middle" font-size="10" fill="var(--text-dim)">'+x+'</text>'; });
+    let ci=0;
+    for (const name in seriesMap) {
+      const pts = seriesMap[name]; const color = colors[ci++ % colors.length];
+      const path = pts.map((p,i)=> (i===0?'M':'L')+xPos(p.x).toFixed(1)+','+yPos(p.y).toFixed(1)).join(' ');
+      svg += '<path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="2"/>';
+      pts.forEach(p=> svg += '<circle cx="'+xPos(p.x).toFixed(1)+'" cy="'+yPos(p.y).toFixed(1)+'" r="3" fill="'+color+'"><title>'+x_(name)+' '+p.x+': '+yFormat(p.y)+' (n='+p.n+')</title></circle>');
+    }
+    svg += '</svg>';
+    return svg;
+    function x_(n){ return n; }
+  }
+
+  function barChart(opts) {
+    const data = opts.data||[]; const width = opts.width||640; const height = opts.height||220;
+    const color = opts.color||'var(--accent)';
+    const pad = {l:48,r:16,t:16,b:32};
+    const innerW = width-pad.l-pad.r, innerH = height-pad.t-pad.b;
+    if (!data.length) return '<svg width="'+width+'" height="'+height+'"></svg>';
+    const yMax = Math.max.apply(null, data.map(d=>d.value).concat([1]))*1.15;
+    const slot = innerW/data.length; const bw = slot*0.6;
+    let svg = '<svg width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'">';
+    data.forEach((d,i)=>{
+      const x = pad.l + i*slot + (slot-bw)/2;
+      const h = (d.value/yMax)*innerH; const y = pad.t+innerH-h;
+      svg += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+color+'" rx="2"/>';
+      svg += '<text x="'+(x+bw/2).toFixed(1)+'" y="'+(height-8)+'" text-anchor="middle" font-size="10" fill="var(--text-dim)">'+d.label+'</text>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  function stackedBar(opts) {
+    const data = opts.data||[]; const keys = opts.keys||[]; const colors = opts.colors||[];
+    const width = opts.width||640; const height = opts.height||260;
+    const pad = {l:48,r:16,t:16,b:32};
+    const innerW = width-pad.l-pad.r, innerH = height-pad.t-pad.b;
+    if (!data.length) return '<svg width="'+width+'" height="'+height+'"></svg>';
+    const slot = innerW/data.length; const bw = slot*0.6;
+    let svg = '<svg width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'">';
+    for (let i=0;i<=4;i++){ const y=pad.t+innerH*(i/4);
+      svg += '<line x1="'+pad.l+'" y1="'+y+'" x2="'+(width-pad.r)+'" y2="'+y+'" stroke="var(--border)"/>';
+      svg += '<text x="'+(pad.l-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="var(--text-dim)">'+(100-i*25)+'%</text>';
+    }
+    data.forEach((d,i)=>{
+      const x = pad.l + i*slot + (slot-bw)/2;
+      let yCursor = pad.t+innerH;
+      keys.forEach((k,ki)=>{
+        const v = d[k]||0; const h = v*innerH; yCursor -= h;
+        svg += '<rect x="'+x.toFixed(1)+'" y="'+yCursor.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+colors[ki]+'"><title>'+k+': '+(v*100).toFixed(1)+'%</title></rect>';
+      });
+      svg += '<text x="'+(x+bw/2).toFixed(1)+'" y="'+(height-8)+'" text-anchor="middle" font-size="10" fill="var(--text-dim)">'+d.label+'</text>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  function histogram(opts) {
+    const values = opts.values||[]; const buckets = opts.buckets||10;
+    const width = opts.width||480; const height = opts.height||200;
+    const threshold = opts.threshold; const xFormat = opts.xFormat || (v=>v.toFixed(2));
+    if (!values.length) return '<svg width="'+width+'" height="'+height+'"></svg>';
+    const min = Math.min.apply(null, values), max = Math.max.apply(null, values.concat([min+0.0001]));
+    const bw = (max-min)/buckets || 1;
+    const counts = new Array(buckets).fill(0);
+    values.forEach(v=>{ let idx = Math.floor((v-min)/bw); if (idx>=buckets) idx=buckets-1; if (idx<0) idx=0; counts[idx]++; });
+    const pad = {l:32,r:16,t:16,b:28};
+    const innerW = width-pad.l-pad.r, innerH = height-pad.t-pad.b;
+    const yMax = Math.max.apply(null, counts.concat([1]));
+    const slot = innerW/buckets;
+    let svg = '<svg width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'">';
+    counts.forEach((c,i)=>{
+      const h = (c/yMax)*innerH; const x = pad.l+i*slot; const y = pad.t+innerH-h;
+      svg += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(slot*0.9).toFixed(1)+'" height="'+h.toFixed(1)+'" fill="var(--accent)"><title>'+c+' rooms</title></rect>';
+    });
+    if (threshold!=null && threshold>=min && threshold<=max) {
+      const tx = pad.l + ((threshold-min)/(max-min))*innerW;
+      svg += '<line x1="'+tx.toFixed(1)+'" y1="'+pad.t+'" x2="'+tx.toFixed(1)+'" y2="'+(pad.t+innerH)+'" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="4 3"/>';
+    }
+    svg += '<text x="'+pad.l+'" y="'+(height-8)+'" font-size="10" fill="var(--text-dim)">'+xFormat(min)+'</text>';
+    svg += '<text x="'+(width-pad.r)+'" y="'+(height-8)+'" text-anchor="end" font-size="10" fill="var(--text-dim)">'+xFormat(max)+'</text>';
+    svg += '</svg>';
+    return svg;
+  }
+
+  return { sparkline, lineChart, barChart, stackedBar, histogram };
+})();
+
+/* ============================== state ============================== */
+let SEED_CATALOGUE = null;
+const State = {
+  catalogue: null,
+  quotes: [],
+  resultsCache: {},
+  currentQuoteId: null,
+  route: 'dashboard',
+  settingsTab: 'company',
+  editorTab: 'rooms',
+  dashboardFilter: { client:'', tier:'', status:'', dateFrom:'', dateTo:'', includeDrafts:false },
+  saveIndicator: '',
+  modal: null,
+  toast: null,
+  wizardStep: 0,
+  wizardDraft: null,
+  benchmarkPick: { roomType:'', jobSize:'' },
+  dismissedChecklist: false,
+  everSavedToFile: false,
+  everExportedPdf: false,
+  collapsedSections: {},
+};
+
+function getCurrentQuote() { return State.quotes.find(q=>q.id===State.currentQuoteId); }
+function currentCatalogueForQuote(quote) { return (quote && quote.catalogueSnapshot) || State.catalogue; }
+function getResult(quote) {
+  const cat = currentCatalogueForQuote(quote);
+  const cacheKey = quote.id + '::' + quote.updatedAt;
+  const cached = State.resultsCache[quote.id];
+  if (cached && cached.key === cacheKey) return cached.result;
+  const result = Calc.computeQuote(quote, cat);
+  State.resultsCache[quote.id] = { key: cacheKey, result };
+  return result;
+}
+
+function newQuote() {
+  const now = new Date().toISOString();
+  return {
+    schemaVersion: 1, id: uid(), jobName: 'New quote', client: '',
+    clientTier: State.catalogue.defaultClientTier || 'T2', revision: 1, status: 'draft',
+    createdAt: now, updatedAt: now, sentAt: null, decidedAt: null,
+    kmFromFactory: (State.catalogue.travel && State.catalogue.travel.defaultKmFromFactory) || 25,
+    notes: '', rooms: [], options: [], catalogueSnapshot: null, catalogueVersion: State.catalogue.catalogueVersion,
+  };
+}
+function newRoom(name) {
+  return { id: uid(), name: name||'Room', spec:{doorsPanels:'',benchtop:'',jobSize:'',jobType:''}, adjust:0, qty:{} };
+}
+
+async function saveCurrentQuote(bumpRevision) {
+  const q = getCurrentQuote();
+  if (!q) return;
+  if (!q.catalogueSnapshot) { q.catalogueSnapshot = deepClone(State.catalogue); q.catalogueVersion = State.catalogue.catalogueVersion; }
+  if (bumpRevision) q.revision = (q.revision||1) + 1;
+  q.updatedAt = new Date().toISOString();
+  await DB.putQuote(q);
+  const idx = State.quotes.findIndex(x=>x.id===q.id);
+  if (idx>=0) State.quotes[idx]=q; else State.quotes.push(q);
+  State.saveIndicator = 'Saved ' + new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+  const ind = byId('save-indicator');
+  if (ind) ind.textContent = State.saveIndicator;
+}
+
+let autosaveTimer = null;
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(()=>{ saveCurrentQuote(); }, 800);
+}
+
+function touchQuote(quote) { quote.updatedAt = new Date().toISOString(); }
+
+/* ============================== app bootstrap & render ============================== */
+async function initApp() {
+  const seedText = byId('seed-catalogue').textContent;
+  SEED_CATALOGUE = Object.freeze(JSON.parse(seedText));
+  await DB.open();
+  let cat = await DB.getCatalogue();
+  if (!cat) { cat = deepClone(SEED_CATALOGUE); await DB.putCatalogue(cat); }
+  State.catalogue = cat;
+  State.quotes = await DB.getAllQuotes();
+  const firstRun = await DB.getMeta('firstRunComplete');
+  const savedFilter = await DB.getMeta('dashboardFilter');
+  if (savedFilter) State.dashboardFilter = savedFilter;
+  State.everSavedToFile = !!(await DB.getMeta('everSavedToFile'));
+  State.everExportedPdf = !!(await DB.getMeta('everExportedPdf'));
+  State.dismissedChecklist = !!(await DB.getMeta('dismissedChecklist'));
+  if (!firstRun) { State.route = 'wizard'; State.wizardDraft = deepClone(State.catalogue); State.wizardStep = 0; }
+  render();
+  document.addEventListener('keydown', onGlobalKeydown);
+}
+
+function onGlobalKeydown(e) {
+  if (State.modal) {
+    if (e.key === 'Escape') { State.modal = null; render(); }
+    return;
+  }
+}
+
+function render() {
+  const app = byId('app');
+  app.innerHTML = renderNav() + renderView() + renderModal() + renderToast();
+  bindGlobalEvents();
+  document.querySelectorAll('[data-autofocus]').forEach(el=>el.focus());
+  if (State.modalKind === 'computed-option') refreshComputedOptionSelects();
+}
+
+function bindGlobalEvents() {
+  const app = byId('app');
+  app.onclick = onAppClick;
+  app.oninput = onAppInput;
+  app.onchange = onAppChange;
+}
+
+function go(route, extra) {
+  State.route = route;
+  if (extra) Object.assign(State, extra);
+  render();
+}
+
+function toast(msg) {
+  State.toast = msg;
+  render();
+  setTimeout(()=>{ if (State.toast===msg) { State.toast=null; const t=byId('toast-el'); if (t) t.remove(); } }, 3200);
+}
+
+function renderToast() {
+  if (!State.toast) return '';
+  return '<div class="toast" id="toast-el">'+escapeHtml(State.toast)+'</div>';
+}
+
+function renderNav() {
+  if (State.route === 'wizard') return '';
+  const tabs = [['dashboard','Dashboard'],['quotes','Quotes'],['settings','Settings']];
+  return '<div class="nav">'
+    +'<div class="nav-brand">Joinery Quoter</div>'
+    +'<div class="nav-tabs">'+tabs.map(t=>'<button class="nav-tab '+(State.route===t[0]||(State.route==='editor'&&t[0]==='quotes')?'active':'')+'" data-act="nav" data-route="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'
+    +'<div class="nav-right">'
+      +(DB.isMemoryFallback() ? '<span class="chip warn">No browser storage — use Save to file</span>' : '')
+      +'<span class="dim small" id="save-indicator">'+escapeHtml(State.saveIndicator)+'</span>'
+      +'<button class="ghost small" data-act="run-tests">Self-tests</button>'
+    +'</div></div>';
+}
+
+function renderView() {
+  switch (State.route) {
+    case 'wizard': return renderWizard();
+    case 'dashboard': return renderDashboard();
+    case 'quotes': return renderQuoteList();
+    case 'editor': return renderEditor();
+    case 'settings': return renderSettings();
+    case 'tests': return renderTests();
+    default: return renderDashboard();
+  }
+}
+
+function renderModal() {
+  if (!State.modal) return '';
+  return State.modal();
+}
+
+/* ============================== event dispatch ============================== */
+function resolveRoot(rootName) {
+  if (rootName === 'quote') return getCurrentQuote();
+  if (rootName === 'catalogue') return State.catalogue;
+  if (rootName === 'wizard') return State.wizardDraft;
+  if (rootName === 'filter') return State.dashboardFilter;
+  return null;
+}
+
+function onAppInput(e) {
+  const el = e.target;
+  if (el.dataset.role === 'qty') {
+    const roomId = el.dataset.room, sectionId = el.dataset.section, itemName = el.dataset.item;
+    const quote = getCurrentQuote();
+    const room = quote.rooms.find(r=>r.id===roomId);
+    const v = el.value.trim()==='' ? null : parseFloat(el.value);
+    room.qty[sectionId] = room.qty[sectionId] || {};
+    if (v==null || isNaN(v)) delete room.qty[sectionId][itemName]; else room.qty[sectionId][itemName] = v;
+    touchQuote(quote);
+    patchRoomComputed(roomId);
+    scheduleAutosave();
+    return;
+  }
+  if (el.dataset.act === 'quote-km') {
+    const quote = getCurrentQuote();
+    quote.kmFromFactory = el.value==='' ? 0 : parseFloat(el.value);
+    touchQuote(quote);
+    patchQuoteHeaderComputed();
+    scheduleAutosave();
+    return;
+  }
+  if (el.dataset.bind && el.dataset.root) {
+    const root = resolveRoot(el.dataset.root);
+    if (!root) return;
+    let value = el.type==='number' ? (el.value===''?null:parseFloat(el.value)) : el.value;
+    setPath(root, el.dataset.bind, value);
+    if (el.dataset.root==='quote') { touchQuote(root); if (el.dataset.recompute==='1') patchQuoteHeaderComputed(); scheduleAutosave(); }
+    if (el.dataset.root==='catalogue') { DB.putCatalogue(State.catalogue); patchSettingsExamples(el); }
+    if (el.dataset.root==='filter') { DB.setMeta('dashboardFilter', State.dashboardFilter); }
+  }
+}
+
+function applyTierFieldEdit(el) {
+  const idx = Number(el.dataset.idx), f = el.dataset.f;
+  const tier = State.catalogue.clientTiers[idx];
+  if (!tier) return;
+  tier[f] = f==='materialMarkup' ? (parseFloat(el.value)||0) : el.value;
+  DB.putCatalogue(State.catalogue);
+}
+function applyCatItemFieldEdit(el) {
+  const sectionId = el.dataset.section, idx = Number(el.dataset.idx), f = el.dataset.f;
+  const section = State.catalogue.sections.find(s=>s.id===sectionId);
+  if (!section) return;
+  const item = section.items[idx];
+  if (!item) return;
+  const numericFields = ['boardCost','edgeCost100m','perKm','rate'];
+  item[f] = numericFields.includes(f) ? (parseFloat(el.value)||0) : el.value;
+  DB.putCatalogue(State.catalogue);
+}
+function applyDropdownFieldEdit(el) {
+  const list = el.dataset.list, idx = Number(el.dataset.idx);
+  State.catalogue.dropdowns[list][idx] = el.value;
+  DB.putCatalogue(State.catalogue);
+}
+
+function onAppChange(e) {
+  const el = e.target;
+  if (el.id === 'file-input' && el.files && el.files[0]) { importQuoteFile(el.files[0]); return; }
+  if (el.id === 'catalogue-file-input' && el.files && el.files[0]) { importCatalogueFile(el.files[0]); return; }
+  if (el.id === 'co-room' || el.id === 'co-section') { refreshComputedOptionSelects(); return; }
+  if (el.dataset.role === 'tier-field') { applyTierFieldEdit(el); render(); return; }
+  if (el.dataset.role === 'cat-item-field') { applyCatItemFieldEdit(el); render(); return; }
+  if (el.dataset.role === 'dropdown-field') { applyDropdownFieldEdit(el); render(); return; }
+  if (el.dataset.bind && el.dataset.root && el.tagName==='SELECT') {
+    const root = resolveRoot(el.dataset.root);
+    if (!root) return;
+    setPath(root, el.dataset.bind, el.value);
+    if (el.dataset.root==='quote') { touchQuote(root); render(); scheduleAutosave(); }
+    if (el.dataset.root==='catalogue') { DB.putCatalogue(State.catalogue); render(); }
+    if (el.dataset.root==='filter') { DB.setMeta('dashboardFilter', State.dashboardFilter); render(); }
+    return;
+  }
+  if (el.dataset.act && Actions[el.dataset.act]) { Actions[el.dataset.act](el, e); }
+}
+
+/* Only patches the edited field's own worked-example text, so typing in a registry
+   input never loses focus. Other fields' examples catch up on the next full render. */
+function patchSettingsExamples(el) {
+  if (!el || !el.dataset.bind) return;
+  const f = Registry.fields.find(f=>f.key===el.dataset.bind);
+  if (!f) return;
+  const detailId = 'detail-'+f.key.replace(/[^a-zA-Z0-9]/g,'');
+  const detailEl = byId(detailId);
+  if (!detailEl) return;
+  const exEl = detailEl.querySelector('.fr-example');
+  if (exEl) { try { exEl.textContent = f.example(State.catalogue); } catch(err) {} }
+}
+
+async function onAppClick(e) {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const fn = Actions[el.dataset.act];
+  if (fn) await fn(el, e);
+}
+
+function allResultsById() {
+  const map = {};
+  State.quotes.forEach(q => { map[q.id] = getResult(q); });
+  return map;
+}
+
+/* ============================== dashboard ============================== */
+function renderGettingStarted() {
+  if (State.dismissedChecklist) return '';
+  const steps = [
+    ['Set company details', !!(State.catalogue.company && State.catalogue.company.name)],
+    ['Create your first quote', State.quotes.length>0],
+    ['Save a quote to file', State.everSavedToFile],
+    ['Export a PDF', State.everExportedPdf],
+  ];
+  if (steps.every(s=>s[1])) return '';
+  return '<div class="card" style="margin-bottom:16px;">'
+    +'<div class="row between"><h3 style="margin:0;">Getting started</h3><button class="ghost small" data-act="dismiss-checklist">Dismiss</button></div>'
+    +'<div class="checklist">'+steps.map(s=>'<span class="step '+(s[1]?'done':'')+'">'+(s[1]?'✓ ':'○ ')+escapeHtml(s[0])+'</span>').join('')+'</div>'
+    +'</div>';
+}
+
+function renderFilterBar(filter) {
+  const clients = Array.from(new Set(State.quotes.map(q=>q.client).filter(Boolean))).sort();
+  const tiers = State.catalogue.clientTiers||[];
+  return '<div class="filter-bar">'
+    +'<div class="field"><label>Client</label><select data-bind="client" data-root="filter"><option value="">All clients</option>'+clients.map(c=>'<option value="'+escapeHtml(c)+'" '+(filter.client===c?'selected':'')+'>'+escapeHtml(c)+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>Tier</label><select data-bind="tier" data-root="filter"><option value="">All tiers</option>'+tiers.map(t=>'<option value="'+t.code+'" '+(filter.tier===t.code?'selected':'')+'>'+escapeHtml(t.label)+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>Status</label><select data-bind="status" data-root="filter"><option value="">All statuses</option>'+['draft','sent','won','lost'].map(s=>'<option value="'+s+'" '+(filter.status===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>From</label><input type="date" data-bind="dateFrom" data-root="filter" value="'+escapeHtml(filter.dateFrom||'')+'"></div>'
+    +'<div class="field"><label>To</label><input type="date" data-bind="dateTo" data-root="filter" value="'+escapeHtml(filter.dateTo||'')+'"></div>'
+    +'<div class="field"><label>&nbsp;</label><label class="row" style="gap:6px;"><input type="checkbox" style="width:auto;" data-act="toggle-include-drafts" '+(filter.includeDrafts?'checked':'')+'> <span class="small dim">Include drafts</span></label></div>'
+    +'</div>';
+}
+
+function renderPipelineStrip(pipe) {
+  const tiles = [
+    ['Quotes in range', pipe.n + '', 'n='+pipe.n],
+    ['Total value', fmtMoney0(pipe.totalIncGst), 'n='+pipe.n],
+    ['Won value', fmtMoney0(pipe.wonValue), 'n='+pipe.winCount],
+    ['Win rate', pipe.decidedCount>=3 ? fmtPct(pipe.winRate,0) : '—', 'n='+pipe.decidedCount+(pipe.decidedCount<3?' (needs 3+)':'')],
+    ['Median days to decide', pipe.medianDaysToDecision!=null ? Math.round(pipe.medianDaysToDecision)+'d' : '—', ''],
+    ['Median quote value', pipe.n>=3 ? fmtMoney0(pipe.medianValue) : '—', pipe.n<3?'needs 3+':('n='+pipe.n)],
+  ];
+  return '<div class="tile-row">'+tiles.map(t=>'<div class="tile"><div class="tile-label">'+t[0]+'</div><div class="tile-value">'+t[1]+'</div><div class="tile-n">'+t[2]+'</div></div>').join('')+'</div>';
+}
+
+function renderPriceTrendPanel(trend) {
+  const types = Object.keys(trend);
+  const head = '<div class="panel-head"><h2>Price trend by room type</h2><span class="panel-filter-note">Median inc-GST price, by month. Months with fewer than 3 rooms are omitted.</span></div>';
+  if (!types.length) return '<div class="panel"><div class="panel-head"><h2>Price trend by room type</h2></div><div class="suppressed">Not enough data yet — trends need at least 3 rooms of the same type in the same month.</div></div>';
+  const seriesMap = {}; types.forEach(t=>{ seriesMap[t] = trend[t].map(p=>({x:p.month, y:p.median, n:p.n})); });
+  const colors = ['#4a9eff','#7ee0a8','#e0a33e','#e05c5c','#9b7ee0','#4ad6c9','#f2a5d0','#a3d977'];
+  const chart = Charts.lineChart({ seriesMap, yFormat: v=>fmtMoney0(v) });
+  const legend = types.map((t,i)=>'<span class="item"><span class="swatch" style="background:'+colors[i%colors.length]+'"></span>'+escapeHtml(t)+'</span>').join('');
+  const rows = types.map(t=>{
+    const pts = trend[t]; const last = pts[pts.length-1]; const yearAgo = pts.find(p=>{
+      const d0=new Date(last.month+'-01'), d1=new Date(p.month+'-01'); return (d0-d1)/(1000*60*60*24*30) >= 11.5;
+    });
+    const chg = yearAgo ? ((last.median-yearAgo.median)/yearAgo.median) : null;
+    const vals = pts.map(p=>p.median);
+    return '<tr><td>'+escapeHtml(t)+'</td><td class="num">'+pts.reduce((s,p)=>s+p.n,0)+'</td><td class="num">'+fmtMoney0(last.median)+'</td>'
+      +'<td class="num">'+fmtMoney0(Stats.percentile(vals,25))+' – '+fmtMoney0(Stats.percentile(vals,75))+'</td>'
+      +'<td class="num">'+(chg!=null?fmtPct(chg,0):'—')+'</td></tr>';
+  }).join('');
+  return '<div class="panel"><div class="card">'+head+chart+'<div class="legend">'+legend+'</div>'
+    +'<table style="margin-top:14px;"><thead><tr><th>Room type</th><th class="num">Quotes</th><th class="num">Latest median</th><th class="num">p25–p75</th><th class="num">12-mo change</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'</div></div>';
+}
+
+function renderRateDriftPanel(drift) {
+  const rows = drift.slice(0,25).map(r=>{
+    const cls = r.deltaPct==null ? '' : (r.deltaPct>0.05?'chip bad':(r.deltaPct< -0.05?'chip good':'chip'));
+    return '<tr><td>'+escapeHtml(r.section)+'</td><td>'+escapeHtml(r.item)+'</td><td class="num">'+fmtMoney(r.firstRate)+' <span class="dim small">('+fmtDate(r.firstDate)+')</span></td>'
+      +'<td class="num">'+(r.currentRate!=null?fmtMoney(r.currentRate):'removed')+'</td>'
+      +'<td class="num"><span class="'+cls+'">'+(r.deltaPct!=null?fmtPct(r.deltaPct,1):'—')+'</span></td></tr>';
+  }).join('');
+  return '<div class="panel"><div class="card"><div class="panel-head"><h2>Rate drift</h2><span class="panel-filter-note">Historical rates read from each quote\'s own snapshot — never the live catalogue.</span></div>'
+    +(drift.length? '<table><thead><tr><th>Section</th><th>Item</th><th class="num">First seen</th><th class="num">Current</th><th class="num">Δ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      : '<div class="suppressed">No rate history yet — save a few quotes to start tracking.</div>')
+    +'</div></div>';
+}
+
+function renderCostMixPanel(mix) {
+  const keys = ['office','labour','materials','markup','overheads'];
+  const colors = ['#4a9eff','#9b7ee0','#e0a33e','#7ee0a8','#4ad6c9'];
+  const data = mix.map(m=>({label:m.quarter, office:m.office, labour:m.labour, materials:m.materials, markup:m.markup, overheads:m.overheads}));
+  const legend = keys.map((k,i)=>'<span class="item"><span class="swatch" style="background:'+colors[i]+'"></span>'+k+'</span>').join('');
+  return '<div class="panel"><div class="card"><div class="panel-head"><h2>Cost-mix drift</h2><span class="panel-filter-note">Share of job value by cost bucket, per quarter. Materials warning threshold: '+fmtPct(State.catalogue.warnings.jobMaterialsRatioMax,0)+'.</span></div>'
+    +(data.length ? Charts.stackedBar({data, keys, colors}) + '<div class="legend">'+legend+'</div>' : '<div class="suppressed">Not enough data yet.</div>')
+    +'</div></div>';
+}
+
+function renderMarginPanel(margin) {
+  const threshold = State.catalogue.warnings.roomCogsRatioMax;
+  const overCount = margin.overThreshold.length;
+  return '<div class="panel"><div class="card"><div class="panel-head"><h2>Margin health</h2><span class="panel-filter-note">Room COGS ratio distribution. Red line = warning threshold ('+fmtPct(threshold,0)+').</span></div>'
+    +(margin.ratios.length ? Charts.histogram({values:margin.ratios, threshold, xFormat:v=>fmtPct(v,0)}) : '<div class="suppressed">Not enough data yet.</div>')
+    +(overCount ? '<div class="banner bad" style="margin-top:10px;">'+overCount+' room(s) currently over threshold: '
+        +margin.overThreshold.slice(0,6).map(o=>'<a data-act="open-quote" data-id="'+o.quoteId+'">'+escapeHtml(o.jobName)+' · '+escapeHtml(o.room)+'</a>').join(', ')+'</div>' : '')
+    +'</div></div>';
+}
+
+function renderBenchmarkPanel(quotes, resultsById) {
+  const roomTypes = Array.from(new Set(quotes.flatMap(q=>resultsById[q.id].rooms.map(x=>x.room.name)))).sort();
+  const jobSizes = State.catalogue.dropdowns.jobSize||[];
+  const pick = State.benchmarkPick;
+  const bm = pick.roomType ? Stats.benchmark(quotes, resultsById, pick.roomType, pick.jobSize, false) : null;
+  return '<div class="panel"><div class="card"><div class="panel-head"><h2>Benchmark lookup</h2></div>'
+    +'<div class="row">'
+    +'<select id="bm-room"><option value="">Room type…</option>'+roomTypes.map(t=>'<option value="'+escapeHtml(t)+'" '+(pick.roomType===t?'selected':'')+'>'+escapeHtml(t)+'</option>').join('')+'</select>'
+    +'<select id="bm-size"><option value="">Any size</option>'+jobSizes.map(s=>'<option value="'+escapeHtml(s)+'" '+(pick.jobSize===s?'selected':'')+'>'+escapeHtml(s)+'</option>').join('')+'</select>'
+    +'<button class="small" data-act="benchmark-lookup">Look up</button>'
+    +'</div>'
+    +(bm ? (bm.n>=3 ? '<div style="margin-top:10px;">Median <span class="money">'+fmtMoney0(bm.median)+'</span> · p25 '+fmtMoney0(bm.p25)+' · p75 '+fmtMoney0(bm.p75)+' <span class="dim small">(n='+bm.n+')</span></div>'
+        : '<div class="suppressed" style="margin-top:10px;">Only '+bm.n+' matching room(s) — needs 3+ for a median.</div>') : '')
+    +'</div></div>';
+}
+
+function renderClientMixPanel(clientMix) {
+  const rows = Object.keys(clientMix).sort((a,b)=>clientMix[b].value-clientMix[a].value).map(c=>{
+    const m = clientMix[c];
+    const wr = m.decided>=3 ? fmtPct(m.won/m.decided,0) : '—';
+    return '<tr><td>'+escapeHtml(c)+'</td><td class="num">'+fmtMoney0(m.value)+'</td><td class="num">'+wr+' <span class="dim small">(n='+m.decided+')</span></td></tr>';
+  }).join('');
+  return '<div class="panel"><div class="card"><div class="panel-head"><h2>Client mix</h2></div>'
+    +(rows ? '<table><thead><tr><th>Client</th><th class="num">Value</th><th class="num">Win rate</th></tr></thead><tbody>'+rows+'</tbody></table>' : '<div class="suppressed">No data yet.</div>')
+    +'</div></div>';
+}
+
+function renderDiscountingPanel(disc) {
+  const rows = ['list','small','big'].map(k=>{
+    const b = disc[k]; const wr = b.decided>=3 ? fmtPct(b.won/b.decided,0) : '—';
+    return '<tr><td>'+b.label+'</td><td class="num">'+b.n+'</td><td class="num">'+wr+' <span class="dim small">(n='+b.decided+')</span></td></tr>';
+  }).join('');
+  return '<div class="panel"><div class="card"><div class="panel-head"><h2>Discounting</h2><span class="panel-filter-note">Win rate bucketed by each quote\'s average room adjust.</span></div>'
+    +'<table><thead><tr><th>Bucket</th><th class="num">Quotes</th><th class="num">Win rate</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function renderDashboard() {
+  const quotes = State.quotes;
+  const resultsById = allResultsById();
+  const filter = State.dashboardFilter;
+  const pipe = Stats.pipeline(quotes, resultsById, filter);
+  let body = renderGettingStarted() + renderFilterBar(filter) + renderPipelineStrip(pipe);
+  if (quotes.length < 3) {
+    body += '<div class="panel"><div class="card" style="text-align:center; padding:36px;">'
+      +'<h2>Trends need history</h2><p class="dim">Once you have a few saved quotes, this page fills in with price trends by room type, rate drift, cost-mix, margin health and more — all built from your own quotes, never anyone else\'s.</p>'
+      +'<button class="primary" data-act="new-quote">New quote</button></div></div>';
+    return '<div class="view dashboard">'+body+'</div>';
+  }
+  const trend = Stats.priceTrendByRoomType(quotes, resultsById, filter, filter.includeDrafts);
+  const drift = Stats.rateDrift(quotes, State.catalogue);
+  const mix = Stats.costMixDrift(quotes, resultsById, filter);
+  const margin = Stats.marginHealth(quotes, resultsById, filter);
+  const clientMix = Stats.clientTierMix(quotes, resultsById, filter);
+  const disc = Stats.discounting(quotes, resultsById, filter);
+  body += renderPriceTrendPanel(trend) + renderRateDriftPanel(drift) + renderCostMixPanel(mix) + renderMarginPanel(margin)
+    + renderBenchmarkPanel(quotes, resultsById) + renderClientMixPanel(clientMix) + renderDiscountingPanel(disc);
+  return '<div class="view dashboard">'+body+'</div>';
+}
+
+/* ============================== quote list ============================== */
+function renderQuoteList() {
+  const rows = [...State.quotes].sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(q=>{
+    const r = getResult(q);
+    const statusChip = {draft:'chip', sent:'chip info', won:'chip good', lost:'chip bad'}[q.status]||'chip';
+    return '<tr>'
+      +'<td><a data-act="open-quote" data-id="'+q.id+'">'+escapeHtml(q.jobName)+'</a></td>'
+      +'<td>'+escapeHtml(q.client||'—')+'</td>'
+      +'<td>'+escapeHtml(q.clientTier)+'</td>'
+      +'<td class="num">'+(q.rooms||[]).length+'</td>'
+      +'<td class="num money">'+fmtMoney0(r.jobIncGst)+'</td>'
+      +'<td><span class="'+statusChip+'">'+q.status+'</span></td>'
+      +'<td>'+fmtDate(q.updatedAt)+'</td>'
+      +'<td class="row" style="gap:4px;">'
+        +'<button class="small ghost" data-act="open-quote" data-id="'+q.id+'">Open</button>'
+        +'<button class="small ghost" data-act="duplicate-quote" data-id="'+q.id+'">Duplicate</button>'
+        +'<button class="small ghost" data-act="export-quote-file" data-id="'+q.id+'">Export</button>'
+        +'<button class="small danger" data-act="delete-quote" data-id="'+q.id+'">Delete</button>'
+      +'</td></tr>';
+  }).join('');
+  return '<div class="view">'
+    +'<div class="toolbar">'
+      +'<input type="text" id="quote-search" placeholder="Search job name or client…" oninput="renderQuoteListFiltered()">'
+      +'<span class="spacer"></span>'
+      +'<button class="primary" data-act="new-quote">New quote</button>'
+      +'<button data-act="open-file-picker">Open from file…</button>'
+      +'<input type="file" id="file-input" accept=".joq,.json" style="display:none;">'
+    +'</div>'
+    +'<table id="quote-list-table"><thead><tr><th>Job</th><th>Client</th><th>Tier</th><th class="num">Rooms</th><th class="num">Total inc GST</th><th>Status</th><th>Updated</th><th></th></tr></thead>'
+    +'<tbody id="quote-list-body">'+(rows||'<tr><td colspan="8" class="dim" style="padding:20px;">No quotes yet.</td></tr>')+'</tbody></table>'
+    +'</div>';
+}
+function renderQuoteListFiltered() {
+  const term = (byId('quote-search').value||'').toLowerCase();
+  document.querySelectorAll('#quote-list-body tr').forEach(tr=>{
+    const text = tr.textContent.toLowerCase();
+    tr.style.display = term && !text.includes(term) ? 'none' : '';
+  });
+}
+
+/* ============================== editor: rooms/sections ============================== */
+function lineTotalId(roomId, sectionId, itemName) { return 'lt-'+roomId+'-'+sectionId+'-'+btoa(unescape(encodeURIComponent(itemName))).replace(/[^a-zA-Z0-9]/g,''); }
+function sectionSubtotalId(roomId, sectionId) { return 'ss-'+roomId+'-'+sectionId; }
+
+function renderRoomSpecRow(quote, room) {
+  const dd = State.catalogue.dropdowns;
+  return '<div class="room-spec-grid">'
+    +'<div><label>Room name</label><input type="text" value="'+escapeHtml(room.name)+'" data-act="room-name" data-room="'+room.id+'"></div>'
+    +'<div><label>Doors / Panels</label>'+selRoom(room,'doorsPanels',dd.doorsPanels)+'</div>'
+    +'<div><label>Benchtop</label>'+selRoom(room,'benchtop',dd.benchtops)+'</div>'
+    +'<div><label>Job size</label>'+selRoom(room,'jobSize',dd.jobSize)+'</div>'
+    +'<div><label>Job type</label>'+selRoom(room,'jobType',dd.jobType)+'</div>'
+    +'<div><label>Adjust</label>'+renderAdjustSelect(room)+'</div>'
+    +'</div>';
+}
+function selRoom(room, field, options) {
+  return '<select data-act="room-spec" data-room="'+room.id+'" data-field="'+field+'">'
+    +'<option value="">—</option>'+options.map(o=>'<option value="'+escapeHtml(o)+'" '+((room.spec[field]||'')===o?'selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>';
+}
+function renderAdjustSelect(room) {
+  const steps = State.catalogue.adjustmentSteps||[0];
+  return '<select data-act="room-adjust" data-room="'+room.id+'">'+steps.map(s=>'<option value="'+s+'" '+(Number(room.adjust)===s?'selected':'')+'>'+(s>=0?'+':'')+(s*100).toFixed(1).replace(/\.0$/,'')+'%</option>').join('')+'</select>';
+}
+
+function renderSectionBlock(quote, room, section) {
+  const catalogue = currentCatalogueForQuote(quote);
+  const qtyMap = room.qty[section.id] || {};
+  const presentNames = Object.keys(qtyMap);
+  const itemsByName = {}; section.items.forEach(i=>itemsByName[i.name]=i);
+  const rows = presentNames.filter(n=>itemsByName[n]).map(name=>{
+    const item = itemsByName[name];
+    const rate = Calc.itemRate(item, section, catalogue, quote);
+    const q = qtyMap[name];
+    const lineTotal = (q||0) * rate;
+    return '<div class="item-row">'
+      +'<div class="item-name">'+escapeHtml(name)+'</div>'
+      +'<div><input type="number" step="any" value="'+(q!=null?q:'')+'" data-role="qty" data-room="'+room.id+'" data-section="'+section.id+'" data-item="'+escapeHtml(name)+'"></div>'
+      +'<div class="dim small">'+section.unitLabel+'</div>'
+      +'<div class="item-rate" title="rate: '+fmtMoney(rate)+' / '+section.unitLabel+'">'+fmtMoney(rate)+'</div>'
+      +'<div id="'+lineTotalId(room.id,section.id,name)+'" class="num money small">'+(q?fmtMoney(lineTotal):'')+'</div>'
+      +'<button class="ghost small" data-act="remove-item" data-room="'+room.id+'" data-section="'+section.id+'" data-item="'+escapeHtml(name)+'" title="Remove">×</button>'
+      +'</div>';
+  }).join('');
+  const available = section.items.filter(i=>!presentNames.includes(i.name));
+  const addPicker = available.length ? '<div class="add-item-row"><select data-act="add-item" data-room="'+room.id+'" data-section="'+section.id+'"><option value="">+ add item…</option>'
+      +available.map(i=>'<option value="'+escapeHtml(i.name)+'">'+escapeHtml(i.name)+'</option>').join('')+'</select></div>' : '';
+  return '<div class="section-block">'
+    +'<div class="section-title-row"><span class="st-title">'+escapeHtml(section.title)+'</span><span class="st-total money" id="'+sectionSubtotalId(room.id,section.id)+'">'+fmtMoney(Calc.sectionTotal(room,section,catalogue,quote))+'</span></div>'
+    +rows+addPicker
+    +'</div>';
+}
+
+function renderRoomFooter(quote, room, rr) {
+  const q = getResult(quote);
+  const roomTypes = room.name;
+  const resultsById = allResultsById();
+  const bm = Stats.benchmark(State.quotes.filter(x=>x.id!==quote.id), resultsById, room.name, room.spec.jobSize, false);
+  let bmHtml = '';
+  if (bm.n>=3) {
+    const diffPct = bm.median ? ((rr.incGst-bm.median)/bm.median) : null;
+    bmHtml = '<div class="benchmark-chip">'+escapeHtml(room.name)+(room.spec.jobSize?' · '+escapeHtml(room.spec.jobSize):'')+' — your median '+fmtMoney0(bm.median)+' (n='+bm.n+')'
+      +(diffPct!=null ? ' · this room is '+(diffPct>=0?'':'')+fmtPct(Math.abs(diffPct),0)+' '+(diffPct>=0?'above':'below') : '')+'</div>';
+  } else {
+    bmHtml = '<div class="benchmark-chip dim">Not enough history for a benchmark yet (n='+bm.n+', needs 3+).</div>';
+  }
+  const warnHtml = rr.warnCogs ? '<div class="chip bad" style="margin-top:6px;">Room profit too low — COGS '+fmtPct(rr.cogsRatio,0)+'</div>' : '';
+  return '<div class="room-footer" id="room-footer-'+room.id+'">'
+    +'<div class="rollup-grid">'
+      +'<div><div class="ri-label">Labour</div><div class="ri-value">'+fmtMoney(rr.labourOffice+rr.labourWorkshop)+'</div></div>'
+      +'<div><div class="ri-label">Materials</div><div class="ri-value">'+fmtMoney(rr.materials)+'</div></div>'
+      +'<div><div class="ri-label">Markup</div><div class="ri-value">'+fmtMoney(rr.markup)+'</div></div>'
+      +'<div><div class="ri-label">Overheads</div><div class="ri-value">'+fmtMoney(rr.overheads)+'</div></div>'
+      +'<div><div class="ri-label">Adjust</div><div class="ri-value">'+fmtMoney(rr.adjust)+'</div></div>'
+      +'<div><div class="ri-label">Ex GST</div><div class="ri-value">'+fmtMoney(rr.exGst)+'</div></div>'
+    +'</div>'
+    +'<div class="row between"><div class="dim small">COGS '+fmtPct(rr.cogsRatio,0)+' · profit '+fmtMoney(rr.profit)+'</div><div class="money" style="font-size:16px;">'+fmtMoney(rr.incGst)+' <span class="dim small">inc GST</span></div></div>'
+    +warnHtml+bmHtml
+    +'</div>';
+}
+
+function renderRoomCard(quote, room, roomResult) {
+  const catalogue = currentCatalogueForQuote(quote);
+  const sections = catalogue.sections.map(s=>renderSectionBlock(quote, room, s)).join('');
+  return '<div class="room-card" id="room-'+room.id+'">'
+    +'<div class="room-card-head"><strong>'+escapeHtml(room.name)+'</strong><span class="spacer"></span>'
+      +'<span class="money">'+fmtMoney(roomResult.incGst)+'</span>'
+      +'<button class="ghost small" data-act="duplicate-room" data-room="'+room.id+'">Duplicate</button>'
+      +'<button class="danger small" data-act="delete-room" data-room="'+room.id+'">Delete</button>'
+    +'</div>'
+    +'<div class="room-card-body">'+renderRoomSpecRow(quote, room)+sections+'</div>'
+    +renderRoomFooter(quote, room, roomResult)
+    +'</div>';
+}
+
+function renderWarningsBanner(result) {
+  if (!result.warnings.length) return '';
+  return result.warnings.map(w=>'<div class="banner '+(w.severity==='red'?'bad':'warn')+'" style="margin-bottom:10px;">'+escapeHtml(w.message)+'</div>').join('');
+}
+
+function renderJobSummaryPanel(quote, result) {
+  const keys = [['office','Office'],['labour','Labour'],['materials','Materials'],['markup','Markup'],['overheads','Overheads']];
+  const colors = {office:'#4a9eff', labour:'#9b7ee0', materials:'#e0a33e', markup:'#7ee0a8', overheads:'#4ad6c9'};
+  const total = result.shareTotal||1;
+  const bar = keys.map(k=>'<div style="width:'+((result.share[k[0]]/total)*100).toFixed(1)+'%; background:'+colors[k[0]]+';" title="'+k[1]+': '+fmtPct(result.share[k[0]]/total,0)+'"></div>').join('');
+  const legend = keys.map(k=>'<span class="item"><span class="swatch" style="background:'+colors[k[0]]+'"></span>'+k[1]+' '+fmtPct(result.share[k[0]]/total,0)+'</span>').join('');
+  const roomRows = result.rooms.map(x=>'<tr><td>'+escapeHtml(x.room.name)+'</td><td class="num money">'+fmtMoney0(x.r.incGst)+'</td></tr>').join('');
+  return '<div class="job-summary-panel card" id="job-summary-panel">'
+    +'<h3>Job summary</h3>'
+    +renderWarningsBanner(result)
+    +'<table>'+roomRows+'</table>'
+    +'<div class="row between" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border);"><strong>Total</strong><span class="money" style="font-size:18px;" id="header-total-mirror">'+fmtMoney(result.jobIncGst)+'</span></div>'
+    +'<h3 style="margin-top:16px;">Cost share</h3><div class="share-bar">'+bar+'</div><div class="legend">'+legend+'</div>'
+    +'<h3 style="margin-top:16px;">Hours</h3><div class="hours-grid">'
+      +'<div>Office <span class="dim">'+fmtNum(result.hours.office,1)+'h</span></div>'
+      +'<div>Factory <span class="dim">'+fmtNum(result.hours.factory,1)+'h</span></div>'
+      +'<div>Site <span class="dim">'+fmtNum(result.hours.site,1)+'h</span></div>'
+      +'<div>Travel <span class="dim">'+fmtNum(result.hours.travel,1)+'h</span></div>'
+    +'</div>'
+    +'<h3 style="margin-top:16px;">Bonus pool</h3><div class="small dim">Pool '+fmtMoney(result.bonus.pool)+' — office '+fmtMoney(result.bonus.office)+', factory '+fmtMoney(result.bonus.factory)+', site '+fmtMoney(result.bonus.site)+'</div>'
+    +'</div>';
+}
+
+function patchRoomComputed(roomId) {
+  const quote = getCurrentQuote();
+  const catalogue = currentCatalogueForQuote(quote);
+  const room = quote.rooms.find(r=>r.id===roomId);
+  if (!room) return;
+  catalogue.sections.forEach(section=>{
+    const qtyMap = room.qty[section.id]||{};
+    section.items.forEach(item=>{
+      const cell = byId(lineTotalId(roomId, section.id, item.name));
+      if (cell) {
+        const q = qtyMap[item.name];
+        const rate = Calc.itemRate(item, section, catalogue, quote);
+        cell.textContent = q ? fmtMoney(q*rate) : '';
+      }
+    });
+    const subtotalEl = byId(sectionSubtotalId(roomId, section.id));
+    if (subtotalEl) subtotalEl.textContent = fmtMoney(Calc.sectionTotal(room, section, catalogue, quote));
+  });
+  const result = Calc.computeQuote(quote, catalogue);
+  const roomResult = result.rooms.find(x=>x.room.id===roomId);
+  const footerEl = byId('room-footer-'+roomId);
+  if (footerEl) footerEl.outerHTML = renderRoomFooter(quote, room, roomResult.r);
+  const headEl = document.querySelector('#room-'+roomId+' .room-card-head .money');
+  if (headEl) headEl.textContent = fmtMoney(roomResult.r.incGst);
+  const summaryEl = byId('job-summary-panel');
+  if (summaryEl) summaryEl.outerHTML = renderJobSummaryPanel(quote, result);
+  const headerTotal = byId('header-total');
+  if (headerTotal) headerTotal.textContent = fmtMoney(result.jobIncGst);
+}
+
+function patchQuoteHeaderComputed() {
+  const quote = getCurrentQuote();
+  const catalogue = currentCatalogueForQuote(quote);
+  const result = Calc.computeQuote(quote, catalogue);
+  const headerTotal = byId('header-total');
+  if (headerTotal) headerTotal.textContent = fmtMoney(result.jobIncGst);
+  const summaryEl = byId('job-summary-panel');
+  if (summaryEl) summaryEl.outerHTML = renderJobSummaryPanel(quote, result);
+  quote.rooms.forEach(room => {
+    const roomResult = result.rooms.find(x=>x.room.id===room.id);
+    const footerEl = byId('room-footer-'+room.id);
+    if (footerEl && roomResult) footerEl.outerHTML = renderRoomFooter(quote, room, roomResult.r);
+  });
+}
+
+/* ============================== editor: options ============================== */
+function renderOptionsPanel(quote) {
+  const rows = (quote.options||[]).map(o=>{
+    const room = quote.rooms.find(r=>r.id===o.roomId);
+    return '<tr><td>'+escapeHtml(o.label)+'</td><td>'+(room?escapeHtml(room.name):'Whole job')+'</td><td>'+o.kind+'</td>'
+      +'<td class="num">'+(o.computed?'<span class="chip info">computed</span> ':'')+fmtMoney(o.priceIncGst||0)+'</td>'
+      +'<td><button class="ghost small" data-act="edit-option" data-option="'+o.id+'">Edit</button> <button class="danger small" data-act="remove-option" data-option="'+o.id+'">Remove</button></td></tr>';
+  }).join('');
+  return '<div class="card">'
+    +'<div class="row between"><h2 style="margin:0;">Options</h2><div class="row">'
+      +'<button class="small" data-act="add-option-manual">+ Manual option</button>'
+      +'<button class="small" data-act="add-option-computed">+ Computed option</button>'
+    +'</div></div>'
+    +'<p class="dim small">Alternates priced separately from the quote total — shown on the PDF as options the client can add.</p>'
+    +(rows ? '<table><thead><tr><th>Label</th><th>Room</th><th>Kind</th><th class="num">Price (inc GST)</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' : '<div class="dim small">No options yet.</div>')
+    +'</div>';
+}
+
+function renderOptionEditModal(quote, option) {
+  const isNew = !option;
+  const o = option || { id: uid(), roomId: null, label: 'New option', kind: 'other', priceIncGst: 0, computed: false };
+  const rooms = quote.rooms;
+  return function() {
+    return '<div class="modal-backdrop" data-act="modal-backdrop-noop"><div class="modal">'
+      +'<h2>'+(isNew?'Add option':'Edit option')+'</h2>'
+      +'<div class="stack">'
+      +'<div><label>Label</label><input type="text" id="opt-label" value="'+escapeHtml(o.label)+'"></div>'
+      +'<div><label>Room (blank = whole job)</label><select id="opt-room"><option value="">Whole job</option>'+rooms.map(r=>'<option value="'+r.id+'" '+(o.roomId===r.id?'selected':'')+'>'+escapeHtml(r.name)+'</option>').join('')+'</select></div>'
+      +'<div><label>Kind</label><select id="opt-kind">'+['doorsPanels','benchtop','other'].map(k=>'<option value="'+k+'" '+(o.kind===k?'selected':'')+'>'+k+'</option>').join('')+'</select></div>'
+      +'<div><label>Price (inc GST)</label><input type="number" step="any" id="opt-price" value="'+(o.priceIncGst||0)+'"></div>'
+      +'</div>'
+      +'<div class="row" style="margin-top:16px; justify-content:flex-end;">'
+        +'<button class="ghost" data-act="close-modal">Cancel</button>'
+        +'<button class="primary" data-act="save-option" data-option="'+o.id+'" data-new="'+(isNew?'1':'0')+'">Save</button>'
+      +'</div></div></div>';
+  };
+}
+
+/* ============================== editor: shell ============================== */
+function renderEditor() {
+  const quote = getCurrentQuote();
+  if (!quote) { go('quotes'); return ''; }
+  const catalogue = currentCatalogueForQuote(quote);
+  const result = Calc.computeQuote(quote, catalogue);
+  const tiers = catalogue.clientTiers||[];
+  const header = '<div class="editor-header">'
+    +'<div class="field"><label>Job name</label><input type="text" data-bind="jobName" data-root="quote" data-recompute="0" value="'+escapeHtml(quote.jobName)+'"></div>'
+    +'<div class="field"><label>Client</label><input type="text" data-bind="client" data-root="quote" data-recompute="0" value="'+escapeHtml(quote.client)+'" list="client-list"></div>'
+    +'<datalist id="client-list">'+(catalogue.dropdowns.clients||[]).map(c=>'<option value="'+escapeHtml(c)+'">').join('')+'</datalist>'
+    +'<div class="field"><label>Tier</label><select data-act="quote-tier">'+tiers.map(t=>'<option value="'+t.code+'" '+(quote.clientTier===t.code?'selected':'')+'>'+escapeHtml(t.label)+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>Status</label><select data-act="quote-status">'+['draft','sent','won','lost'].map(s=>'<option value="'+s+'" '+(quote.status===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>km from factory</label><input type="number" step="any" data-act="quote-km" value="'+quote.kmFromFactory+'"></div>'
+    +'<div class="field dim small">Rev '+quote.revision+(quote.catalogueSnapshot?'':'<span class="chip warn" style="margin-left:6px;">unsaved — live rates</span>')+'</div>'
+    +'<div class="header-total"><div class="dim small">Total inc GST</div><div class="money" id="header-total">'+fmtMoney(result.jobIncGst)+'</div></div>'
+    +'<div class="row" style="width:100%; margin-top:6px;">'
+      +'<button data-act="nav" data-route="quotes">← Quotes</button>'
+      +'<button class="primary" data-act="save-quote">Save</button>'
+      +'<button data-act="save-quote-file">Save to file</button>'
+      +'<button data-act="export-pdf">Export PDF <span class="dim small">(print → Save as PDF)</span></button>'
+      +(quote.catalogueSnapshot ? '<button data-act="reprice">Re-price at current rates</button>' : '')
+      +'<span class="spacer"></span>'
+      +'<div class="row" style="gap:4px;">'
+        +'<button class="'+(State.editorTab==='rooms'?'primary':'')+' small" data-act="editor-tab" data-tab="rooms">Rooms</button>'
+        +'<button class="'+(State.editorTab==='options'?'primary':'')+' small" data-act="editor-tab" data-tab="options">Options</button>'
+      +'</div>'
+    +'</div>'
+    +'</div>';
+
+  let body;
+  if (State.editorTab === 'options') {
+    body = '<div class="view"><div class="stack">'+renderWarningsBanner(result)+renderOptionsPanel(quote)+'</div></div>';
+  } else {
+    const roomsHtml = quote.rooms.map(room => {
+      const rr = result.rooms.find(x=>x.room.id===room.id).r;
+      return renderRoomCard(quote, room, rr);
+    }).join('') || '<div class="card dim">No rooms yet. Add one to start pricing.</div>';
+    body = '<div class="editor-body">'
+      +'<div class="stack">'+renderWarningsBanner(result)+roomsHtml+'<button data-act="add-room">+ Add room</button></div>'
+      +renderJobSummaryPanel(quote, result)
+      +'</div>';
+  }
+  return header + body;
+}
+
+/* ============================== re-price modal ============================== */
+function renderRepriceModal(quote) {
+  const diff = diffCatalogues(quote.catalogueSnapshot, State.catalogue, quote);
+  return function() {
+    if (!diff.length) {
+      return '<div class="modal-backdrop"><div class="modal"><h2>Re-price at current rates</h2>'
+        +'<p>No rates have changed since this quote was last priced. Nothing to update.</p>'
+        +'<div class="row" style="justify-content:flex-end;"><button data-act="close-modal">Close</button></div></div></div>';
+    }
+    const rows = diff.map(d=>'<tr><td>'+escapeHtml(d.section)+'</td><td>'+escapeHtml(d.item)+'</td>'
+      +'<td class="num">'+fmtMoney(d.oldRate)+'</td><td class="num">'+(d.removed?'<span class="chip warn">removed</span>':fmtMoney(d.newRate))+'</td></tr>').join('');
+    const oldTotal = Calc.computeQuote(quote, quote.catalogueSnapshot).jobIncGst;
+    const newTotal = Calc.computeQuote(quote, State.catalogue).jobIncGst;
+    return '<div class="modal-backdrop"><div class="modal">'
+      +'<h2>Re-price at current rates</h2>'
+      +'<p class="dim small">'+diff.length+' rate(s) changed since this quote was priced.</p>'
+      +'<table><thead><tr><th>Section</th><th>Item</th><th class="num">Old</th><th class="num">New</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      +'<div class="row between" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">'
+        +'<span>Total: '+fmtMoney(oldTotal)+' → <strong class="money">'+fmtMoney(newTotal)+'</strong></span>'
+      +'</div>'
+      +'<div class="row" style="margin-top:16px; justify-content:flex-end;">'
+        +'<button class="ghost" data-act="close-modal">Cancel</button>'
+        +'<button class="primary" data-act="reprice-apply">Apply</button>'
+      +'</div></div></div>';
+  };
+}
+
+/* ============================== settings ============================== */
+function renderFieldRow(f, ctx) {
+  const val = Registry.get(ctx, f.key);
+  const inputHtml = f.type==='textarea'
+    ? '<textarea data-bind="'+f.key+'" data-root="catalogue">'+escapeHtml(val)+'</textarea>'
+    : '<input type="'+(f.type==='number'?'number':'text')+'" '+(f.type==='number'?'step="any"':'')+' data-bind="'+f.key+'" data-root="catalogue" value="'+escapeHtml(val)+'">';
+  const detailId = 'detail-'+f.key.replace(/[^a-zA-Z0-9]/g,'');
+  return '<div class="field-row">'
+    +'<div class="fr-label">'+escapeHtml(f.label)+'</div>'
+    +'<div>'+inputHtml+'<div class="fr-unit">'+escapeHtml(f.unit||'')+'</div></div>'
+    +'<div><div class="fr-help">'+escapeHtml(f.help)+'</div>'
+      +'<a class="small" data-act="toggle-field-detail" data-detail="'+detailId+'">Where this is used</a>'
+      +'<div class="fr-detail" id="'+detailId+'">'
+        +(f.formula?'<div><strong>Formula:</strong> '+escapeHtml(f.formula)+'</div>':'')
+        +'<div><strong>Affects:</strong> '+f.affects.join(', ')+'</div>'
+        +'<div><strong>Example:</strong> <span class="fr-example">'+escapeHtml(f.example(ctx))+'</span></div>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
+function renderSettingsGroup(groupKey) {
+  const info = Registry.groupInfo[groupKey];
+  const fields = Registry.groupFields(groupKey);
+  return '<div class="stack"><h2>'+info.title+'</h2><p class="dim">'+escapeHtml(info.intro)+'</p>'
+    +'<div>'+fields.map(f=>renderFieldRow(f, State.catalogue)).join('')+'</div>'
+    +'<div class="row" style="margin-top:14px;"><button class="ghost small" data-act="reset-group" data-group="'+groupKey+'">Reset this group to factory defaults</button></div>'
+    +'</div>';
+}
+
+function renderTiersPanel() {
+  const tiers = State.catalogue.clientTiers;
+  const rows = tiers.map((t,i)=>'<div class="catalogue-item-row" style="grid-template-columns:100px 1fr 120px 24px;">'
+    +'<input type="text" value="'+escapeHtml(t.code)+'" data-role="tier-field" data-idx="'+i+'" data-f="code">'
+    +'<input type="text" value="'+escapeHtml(t.label)+'" data-role="tier-field" data-idx="'+i+'" data-f="label">'
+    +'<input type="number" step="0.01" value="'+t.materialMarkup+'" data-role="tier-field" data-idx="'+i+'" data-f="materialMarkup">'
+    +'<button class="ghost small" data-act="remove-tier" data-idx="'+i+'">×</button>'
+  +'</div>').join('');
+  return '<div class="stack"><h2>Pricing tiers</h2><p class="dim">Markup applies to materials only — labour and overheads always pass through at cost. A higher markup multiplies material cost by more.</p>'
+    +rows+'<button class="small" data-act="add-tier">+ Add tier</button></div>';
+}
+
+function renderCataloguePanel() {
+  const sections = State.catalogue.sections;
+  const activeId = State.catalogueSectionTab && sections.find(s=>s.id===State.catalogueSectionTab) ? State.catalogueSectionTab : sections[0].id;
+  const section = sections.find(s=>s.id===activeId);
+  const tabs = sections.map(s=>'<button class="'+(s.id===activeId?'primary':'ghost')+' small" data-act="catalogue-section-tab" data-section="'+s.id+'">'+escapeHtml(s.title)+'</button>').join(' ');
+  const rows = section.items.map((it,i)=>{
+    const rate = Calc.itemRate(it, section, State.catalogue, {kmFromFactory: (State.catalogue.travel&&State.catalogue.travel.defaultKmFromFactory)||0});
+    if (section.kind==='board') {
+      return '<div class="catalogue-item-row"><input type="text" value="'+escapeHtml(it.name)+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="name">'
+        +'<input type="number" step="any" value="'+it.boardCost+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="boardCost" title="board cost">'
+        +'<input type="number" step="any" value="'+it.edgeCost100m+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="edgeCost100m" title="edge cost / 100m">'
+        +'<select data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="cncProfile"><option value="whiteboard" '+(it.cncProfile==='whiteboard'?'selected':'')+'>whiteboard CNC</option><option value="standard" '+(it.cncProfile==='standard'?'selected':'')+'>standard CNC</option></select>'
+        +'<div class="dim small right">= '+fmtMoney(rate)+'</div>'
+        +'<button class="ghost small" data-act="remove-catalogue-item" data-section="'+section.id+'" data-idx="'+i+'">×</button></div>';
+    }
+    if (section.kind==='travel') {
+      return '<div class="catalogue-item-row"><input type="text" value="'+escapeHtml(it.name)+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="name">'
+        +'<input type="number" step="any" value="'+it.perKm+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="perKm" title="$/km">'
+        +'<div></div><div class="dim small right">= '+fmtMoney(rate)+'/trip</div><div></div>'
+        +'<button class="ghost small" data-act="remove-catalogue-item" data-section="'+section.id+'" data-idx="'+i+'">×</button></div>';
+    }
+    return '<div class="catalogue-item-row"><input type="text" value="'+escapeHtml(it.name)+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="name">'
+      +'<input type="number" step="any" value="'+it.rate+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="rate" title="rate">'
+      +'<div></div><div></div><div></div>'
+      +'<button class="ghost small" data-act="remove-catalogue-item" data-section="'+section.id+'" data-idx="'+i+'">×</button></div>';
+  }).join('');
+  return '<div class="stack"><h2>Catalogue</h2><p class="dim">Every item and rate the quote engine reads from. Changing a rate here only affects new pricing — saved quotes keep their own snapshot and are unaffected.</p>'
+    +'<div class="row">'+tabs+'</div>'
+    +'<div style="margin-top:10px;">'+rows+'</div>'
+    +'<button class="small" data-act="add-catalogue-item" data-section="'+section.id+'">+ Add item</button>'
+    +'</div>';
+}
+
+function renderLabourRatesPanel() {
+  const info = Registry.groupInfo.labour;
+  const fields = Registry.groupFields('labour');
+  const secIds = ['officeLabour','factoryLabour','siteLabour'];
+  const grids = secIds.map(sid=>{
+    const section = State.catalogue.sections.find(s=>s.id===sid);
+    const rows = section.items.map((it,i)=>'<div class="catalogue-item-row" style="grid-template-columns:1fr 100px 24px;">'
+      +'<input type="text" value="'+escapeHtml(it.name)+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="name">'
+      +'<input type="number" step="any" value="'+it.rate+'" data-role="cat-item-field" data-section="'+section.id+'" data-idx="'+i+'" data-f="rate">'
+      +'<button class="ghost small" data-act="remove-catalogue-item" data-section="'+section.id+'" data-idx="'+i+'">×</button></div>').join('');
+    return '<h3 style="margin-top:14px;">'+escapeHtml(section.title)+' ($/hr)</h3>'+rows
+      +'<button class="small" data-act="add-catalogue-item" data-section="'+section.id+'">+ Add item</button>';
+  }).join('');
+  return '<div class="stack"><h2>'+info.title+'</h2><p class="dim">'+escapeHtml(info.intro)+'</p>'
+    +'<div>'+fields.map(f=>renderFieldRow(f, State.catalogue)).join('')+'</div>'
+    +grids+'</div>';
+}
+
+function renderDropdownsPanel() {
+  const dd = State.catalogue.dropdowns;
+  const labels = { rooms:'Rooms', doorsPanels:'Doors / Panels', benchtops:'Benchtops', jobSize:'Job size', jobType:'Job type', clients:'Clients' };
+  const blocks = Object.keys(dd).map(list=>{
+    const items = dd[list].map((v,i)=>'<span class="dl-tag"><input type="text" style="width:auto; border:none; background:transparent; padding:0;" value="'+escapeHtml(v)+'" data-role="dropdown-field" data-list="'+list+'" data-idx="'+i+'" size="'+Math.max(4,v.length)+'">'
+      +'<a data-act="remove-dropdown-item" data-list="'+list+'" data-idx="'+i+'">×</a></span>').join('');
+    return '<div style="margin-bottom:16px;"><h3>'+labels[list]+'</h3><div class="dropdown-list">'+items+'</div>'
+      +'<button class="small ghost" style="margin-top:6px;" data-act="add-dropdown-item" data-list="'+list+'">+ Add</button></div>';
+  }).join('');
+  return '<div class="stack"><h2>Dropdown lists</h2><p class="dim">The pick-lists offered when specifying a room. All free-text overridable on the room itself.</p>'+blocks+'</div>';
+}
+
+function renderFormulaPage() {
+  const c = State.catalogue;
+  const oh = Calc.overheadHourlyRate(c);
+  const wb = Calc.cncPerSheet(c,'whiteboard'), std = Calc.cncPerSheet(c,'standard');
+  return '<div class="stack"><h2>Formula reference</h2><p class="dim">Every formula the engine uses, with your current numbers substituted in. This is what is used where, in one place.</p>'
+    +'<div class="card"><h3>CNC cost per sheet</h3><div class="dim small">cncPerSheet = (labourRate/60 × minsPerSheet) × (costPerCutter / sheetsPerCutter)</div>'
+      +'<p>Whiteboard: <span class="money">'+fmtMoney(wb)+'</span> / sheet. Standard: <span class="money">'+fmtMoney(std)+'</span> / sheet. <a data-act="settings-nav" data-tab="cnc">Edit CNC settings →</a></p></div>'
+    +'<div class="card"><h3>Overhead hourly rate</h3><div class="dim small">overheadHourlyRate = dailyRunningCost / jobsPerDay / hoursPerDay</div>'
+      +'<p>'+fmtMoney(c.overhead.dailyRunningCost)+' ÷ '+c.overhead.jobsPerDay+' ÷ '+c.overhead.hoursPerDay+' = <span class="money">'+fmtMoney(oh)+'</span>/hr. <a data-act="settings-nav" data-tab="overhead">Edit overhead settings →</a></p></div>'
+    +'<div class="card"><h3>Room rollup</h3><div class="dim small">markup = materials × tierMarkup − materials (materials only, labour and overheads pass through at cost)<br>base = labourOffice + labourWorkshop + materials + markup + overheads<br>exGst = base × (1 + roomAdjust)<br>incGst = exGst × (1 + GST '+fmtPct(c.gstRate,0)+')</div></div>'
+    +'<div class="card"><h3>Cost of goods (internal only — never printed)</h3><div class="dim small">cogs = (labourOffice + labourWorkshop) × '+c.cogs.labourFactor+' + materials × '+c.cogs.materialsFactor+' + overheads</div>'
+      +'<p>Warns when a room\'s COGS exceeds '+fmtPct(c.warnings.roomCogsRatioMax,0)+' of its price, or materials exceed '+fmtPct(c.warnings.jobMaterialsRatioMax,0)+' of the whole job. <a data-act="settings-nav" data-tab="cogs">Edit COGS & margin →</a></p></div>'
+    +'<div class="card"><h3>Bonus pool</h3><div class="dim small">pool = jobIncGst × '+c.bonus.poolPctOfTotal+' × '+c.bonus.poolMultiplier+' + (Σ room adjust / 2)</div></div>'
+    +'</div>';
+}
+
+function renderSettings() {
+  const tabs = [['company','Company'],['tiers','Pricing tiers'],['overhead','Overhead recovery'],['cnc','CNC'],['labour','Labour rates'],
+    ['travel','Travel'],['cogs','COGS & margin'],['bonus','Bonus'],['catalogue','Catalogue'],['dropdowns','Dropdowns'],
+    ['advisory','Hourly rate builder'],['formula','Formula reference']];
+  const nav = tabs.map(t=>'<button class="'+(State.settingsTab===t[0]?'active':'')+'" data-act="settings-nav" data-tab="'+t[0]+'">'+t[1]+'</button>').join('');
+  let content;
+  switch (State.settingsTab) {
+    case 'tiers': content = renderTiersPanel(); break;
+    case 'catalogue': content = renderCataloguePanel(); break;
+    case 'dropdowns': content = renderDropdownsPanel(); break;
+    case 'formula': content = renderFormulaPage(); break;
+    case 'labour': content = renderLabourRatesPanel(); break;
+    default: content = renderSettingsGroup(State.settingsTab);
+  }
+  return '<div class="view"><div class="row between"><h1>Settings</h1><div class="row">'
+    +'<button class="small" data-act="run-wizard-again">Run setup again</button>'
+    +'<button class="small" data-act="export-catalogue">Export catalogue</button>'
+    +'<button class="small" data-act="import-catalogue-picker">Import catalogue</button>'
+    +'<input type="file" id="catalogue-file-input" accept=".joqcat,.json" style="display:none;">'
+    +'<button class="small danger" data-act="factory-reset">Reset to factory defaults</button>'
+    +'</div></div>'
+    +'<div class="settings-layout"><div class="settings-nav">'+nav+'</div><div>'+content+'</div></div></div>';
+}
+
+/* ============================== first-run wizard ============================== */
+function wizItemBindPath(cat, sectionId, itemName) {
+  const si = cat.sections.findIndex(s=>s.id===sectionId);
+  const ii = cat.sections[si].items.findIndex(it=>it.name===itemName);
+  return 'sections.'+si+'.items.'+ii+'.rate';
+}
+function wizField(label, bindPath, unit) {
+  const val = getPath(State.wizardDraft, bindPath);
+  return '<div style="margin-bottom:10px;"><label>'+label+'</label><div class="row"><input type="number" step="any" data-bind="'+bindPath+'" data-root="wizard" value="'+val+'" style="flex:1;"><span class="dim small">'+(unit||'')+'</span></div></div>';
+}
+function wizTextField(label, bindPath) {
+  const val = getPath(State.wizardDraft, bindPath) || '';
+  return '<div style="margin-bottom:10px;"><label>'+label+'</label><input type="text" data-bind="'+bindPath+'" data-root="wizard" value="'+escapeHtml(val)+'"></div>';
+}
+
+function renderWizardStep() {
+  const d = State.wizardDraft;
+  const step = State.wizardStep;
+  if (step === 0) {
+    return '<h2>Welcome to Joinery Quoter</h2>'
+      +'<p>This tool prices joinery jobs room by room, using rates and formulas you control. A few things worth knowing up front:</p>'
+      +'<ul><li>Everything stays on this machine — nothing is uploaded anywhere.</li>'
+      +'<li>Quotes live in this browser, but the real backup is <strong>Save to file</strong> into your job folder (e.g. OneDrive) — do that for anything that matters.</li>'
+      +'<li>Every field in the next few steps is pre-filled with a sensible default. You can skip straight to the end and fine-tune later in Settings.</li></ul>';
+  }
+  if (step === 1) {
+    return '<h2>Your business</h2><p class="dim">Only the business name reaches the client PDF prominently — the rest is header detail.</p>'
+      +wizTextField('Business name','company.name')
+      +wizTextField('ABN','company.abn')
+      +wizTextField('Phone','company.phone')
+      +wizTextField('Email','company.email');
+  }
+  if (step === 2) {
+    return '<h2>What you charge for time</h2><p class="dim">Charge-out rates, not wages — what a chargeable hour costs the client. You can add more rate lines later in Settings → Catalogue.</p>'
+      +wizField('Office ($/hr)', wizItemBindPath(d,'officeLabour','Quote'))
+      +wizField('Factory ($/hr)', wizItemBindPath(d,'factoryLabour','Assemble/Set up'))
+      +wizField('Site / install ($/hr)', wizItemBindPath(d,'siteLabour','Installation'));
+  }
+  if (step === 3) {
+    const oh = Calc.overheadHourlyRate(d);
+    return '<h2>Overhead recovery</h2><p class="dim">Your quotes recover fixed running costs through the hours you quote, not a flat percentage.</p>'
+      +wizField('Daily running cost','overhead.dailyRunningCost','$/day')
+      +wizField('Jobs per day','overhead.jobsPerDay','jobs')
+      +wizField('Hours per day','overhead.hoursPerDay','hrs')
+      +'<div class="banner info">= '+fmtMoney(oh)+' recovered on every quoted hour.</div>';
+  }
+  if (step === 4) {
+    const tiers = d.clientTiers;
+    return '<h2>Pricing tiers</h2><p class="dim">Markup applies to <strong>materials only</strong> — labour and overheads always pass through at cost.</p>'
+      +tiers.map((t,i)=>wizField(t.label, 'clientTiers.'+i+'.materialMarkup', '× materials')).join('');
+  }
+  return '<h2>Travel &amp; finish</h2><p class="dim">Default distance and per-km rates — editable per job afterwards.</p>'
+    +wizField('Default km from factory','travel.defaultKmFromFactory','km')
+    +wizField('Trips to measure','travel.perKmRates.Trips to measure','$/km')
+    +wizField('Trips in ute','travel.perKmRates.Trips in ute','$/km')
+    +wizField('Trips in truck','travel.perKmRates.Trips in truck','$/km')
+    +'<div class="banner info" style="margin-top:14px;">You can fine-tune every other rate — CNC, COGS factors, bonus split, the full catalogue — later in Settings, each with a plain-English explanation.</div>';
+}
+
+function renderWizard() {
+  const total = 6;
+  const dots = Array.from({length:total}).map((_,i)=>'<div class="dot '+(i===State.wizardStep?'active':'')+'"></div>').join('');
+  const isLast = State.wizardStep === total-1;
+  return '<div class="view" style="display:flex; align-items:center; justify-content:center; min-height:100vh;">'
+    +'<div class="card wizard-modal">'
+    +'<div class="wizard-dots">'+dots+'</div>'
+    +renderWizardStep()
+    +'<div class="row" style="margin-top:20px; justify-content:space-between;">'
+      +'<button class="ghost" data-act="wizard-skip">Skip — use defaults</button>'
+      +'<div class="row">'
+        +(State.wizardStep>0?'<button data-act="wizard-back">Back</button>':'')
+        +(isLast ? '<button class="primary" data-act="wizard-finish-new-quote">Create your first quote</button><button data-act="wizard-finish">Finish</button>'
+                 : '<button class="primary" data-act="wizard-next">Next</button>')
+      +'</div>'
+    +'</div></div></div>';
+}
+
+async function commitWizard() {
+  State.catalogue = deepClone(State.wizardDraft);
+  await DB.putCatalogue(State.catalogue);
+  await DB.setMeta('firstRunComplete', true);
+  await DB.setMeta('setupVersion', State.catalogue.catalogueVersion);
+}
+
+/* ============================== print.js ============================== */
+function buildPrintRoot(quote, result, catalogue) {
+  const co = catalogue.company || {};
+  const dateStr = new Date(quote.updatedAt||quote.createdAt).toLocaleDateString('en-AU');
+  const validUntil = new Date(quote.updatedAt||quote.createdAt);
+  validUntil.setDate(validUntil.getDate() + (co.quoteValidDays||30));
+  const roomRows = result.rooms.filter(x=>x.r.exGst>0.005).map(x=>'<tr>'
+    +'<td>'+escapeHtml(x.room.name)+'</td>'
+    +'<td>'+escapeHtml(x.room.spec.doorsPanels||'—')+'</td>'
+    +'<td>'+escapeHtml(x.room.spec.benchtop||'—')+'</td>'
+    +'<td>'+escapeHtml(x.room.spec.jobType||'—')+'</td>'
+    +'<td class="num">'+fmtMoney(x.r.exGst)+'</td></tr>').join('');
+  const gst = result.jobExGst * (catalogue.gstRate||0.1);
+  const optionsRows = (quote.options||[]).map(o=>{
+    const room = quote.rooms.find(r=>r.id===o.roomId);
+    return '<tr><td>'+escapeHtml(o.label)+'</td><td>'+(room?escapeHtml(room.name):'Whole job')+'</td><td class="num">'+fmtMoney(o.priceIncGst||0)+'</td></tr>';
+  }).join('');
+  return '<div class="print-page">'
+    +'<div class="print-header"><div>'
+      +(co.logoDataUrl ? '<img src="'+co.logoDataUrl+'" class="print-logo"/>' : '')
+      +'<div class="print-company-name">'+escapeHtml(co.name||'')+'</div>'
+      +'<div class="print-dim">'+escapeHtml(co.abn||'')+'</div>'
+      +'<div class="print-dim">'+escapeHtml(co.phone||'')+(co.phone&&co.email?' · ':'')+escapeHtml(co.email||'')+'</div>'
+    +'</div><div class="print-right">'
+      +'<div class="print-title">QUOTATION</div>'
+      +'<div>'+escapeHtml(quote.jobName)+'</div>'
+      +'<div class="print-dim">'+escapeHtml(quote.client||'')+'</div>'
+      +'<div class="print-dim">Date: '+dateStr+'</div>'
+      +'<div class="print-dim">Revision: '+quote.revision+'</div>'
+      +'<div class="print-dim">Valid until: '+validUntil.toLocaleDateString('en-AU')+'</div>'
+    +'</div></div>'
+    +'<table class="print-table"><thead><tr><th>Room</th><th>Doors / Panels</th><th>Benchtop</th><th>Type</th><th class="num">Price (ex GST)</th></tr></thead><tbody>'+roomRows+'</tbody></table>'
+    +'<table class="print-totals">'
+      +'<tr><td>Subtotal (ex GST)</td><td class="num">'+fmtMoney(result.jobExGst)+'</td></tr>'
+      +'<tr><td>GST ('+fmtPct(catalogue.gstRate,0)+')</td><td class="num">'+fmtMoney(gst)+'</td></tr>'
+      +'<tr class="print-total-row"><td>Total (inc GST)</td><td class="num">'+fmtMoney(result.jobIncGst)+'</td></tr>'
+    +'</table>'
+    +((quote.options||[]).length ? '<div class="print-section-title">Options</div>'
+      +'<table class="print-table"><thead><tr><th>Option</th><th>Room</th><th class="num">Price</th></tr></thead><tbody>'+optionsRows+'</tbody></table>'
+      +'<div class="print-note">Options are priced as alternatives to the above and are not included in the total.</div>' : '')
+    +'<div class="print-section-title">Terms</div><div class="print-terms">'+escapeHtml(co.terms||'')+'</div>'
+    +'</div>';
+}
+
+async function exportPdf() {
+  const quote = getCurrentQuote();
+  if (!quote) return;
+  const catalogue = currentCatalogueForQuote(quote);
+  const result = Calc.computeQuote(quote, catalogue);
+  byId('print-root').innerHTML = buildPrintRoot(quote, result, catalogue);
+  const prevTitle = document.title;
+  document.title = 'Quote — ' + quote.jobName + ' — Rev ' + quote.revision;
+  window.print();
+  document.title = prevTitle;
+}
+
+/* ============================== file import/export ============================== */
+async function downloadQuoteFile(quote) {
+  const filename = sanitizeFilename(quote.jobName) + ' - Rev ' + quote.revision + '.joq';
+  const text = JSON.stringify(quote, null, 2);
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description:'Joinery Quote', accept:{'application/json':['.joq']} }] });
+      const writable = await handle.createWritable();
+      await writable.write(text); await writable.close();
+      State.everSavedToFile = true; await DB.setMeta('everSavedToFile', true);
+      return true;
+    } catch (e) { if (e && e.name==='AbortError') return false; }
+  }
+  const blob = new Blob([text], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  State.everSavedToFile = true; await DB.setMeta('everSavedToFile', true);
+  return true;
+}
+
+function importQuoteFile(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    let q;
+    try { q = JSON.parse(reader.result); } catch(e) { toast('Not a valid quote file.'); return; }
+    if (!q || !q.schemaVersion || !q.rooms) { toast('Not a valid quote file.'); return; }
+    const existing = State.quotes.find(x=>x.id===q.id);
+    if (existing) {
+      const choice = prompt('A quote with this ID already exists ("'+existing.jobName+'"). Type "replace" to overwrite, "copy" to import as a new quote, or leave blank to cancel.');
+      if (choice==='replace') { /* keep id */ }
+      else if (choice==='copy') { q.id = uid(); }
+      else { return; }
+    }
+    State.quotes = State.quotes.filter(x=>x.id!==q.id);
+    State.quotes.push(q);
+    await DB.putQuote(q);
+    render();
+    toast('Quote imported.');
+  };
+  reader.readAsText(file);
+}
+
+function importCatalogueFile(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    let c;
+    try { c = JSON.parse(reader.result); } catch(e) { toast('Not a valid catalogue file.'); return; }
+    if (!c || !c.sections) { toast('Not a valid catalogue file.'); return; }
+    if (!confirm('Replace the current catalogue with the imported one? This affects new pricing only — saved quotes keep their own snapshot.')) return;
+    State.catalogue = c;
+    await DB.putCatalogue(c);
+    render();
+    toast('Catalogue imported.');
+  };
+  reader.readAsText(file);
+}
+
+function downloadCatalogueFile() {
+  const text = JSON.stringify(State.catalogue, null, 2);
+  const blob = new Blob([text], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'catalogue.joqcat';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+/* ============================== tests.js ============================== */
+const Tests = (() => {
+  function approxEqual(a,b,tol) { tol = tol==null?0.01:tol; return Math.abs(a-b) <= tol; }
+
+  function fixtureQuote() {
+    const room = newRoom('Bathroom');
+    room.qty = {
+      officeLabour: { 'Quote':0.5, 'Nest & Order':0.5 },
+      boardEdge: { 'Whiteboard':1, 'Woodmatt':1 },
+      drawers: { 'DTC/Edge 178x500':2 },
+      handles: { 'Fingerpull (per pull)':2 },
+      hardware: { 'Blum 110d & plate':4 },
+      factoryLabour: { 'Assemble/Set up':1 },
+      siteLabour: { 'Installation':1 },
+      travel: { 'Trips in ute':0.5 },
+    };
+    const quote = newQuote();
+    quote.clientTier = 'T2';
+    quote.kmFromFactory = 25;
+    quote.rooms = [room];
+    return quote;
+  }
+
+  function run() {
+    const results = [];
+    const t = (name, pass, detail) => results.push({ name, pass: !!pass, detail: detail==null?'':String(detail) });
+    const catalogue = deepClone(SEED_CATALOGUE);
+    const quote = fixtureQuote();
+    const res = Calc.computeQuote(quote, catalogue);
+    const rr = res.rooms[0].r;
+
+    t('cncPerSheet(whiteboard) ≈ 34.8333', approxEqual(Calc.cncPerSheet(catalogue,'whiteboard'), 34.8333, 0.01), Calc.cncPerSheet(catalogue,'whiteboard').toFixed(4));
+    t('cncPerSheet(standard) ≈ 36.1429', approxEqual(Calc.cncPerSheet(catalogue,'standard'), 36.1429, 0.01), Calc.cncPerSheet(catalogue,'standard').toFixed(4));
+
+    const boardSection = catalogue.sections.find(s=>s.id==='boardEdge');
+    const whiteboardItem = boardSection.items.find(i=>i.name==='Whiteboard');
+    const woodmattItem = boardSection.items.find(i=>i.name==='Woodmatt');
+    t('rate Whiteboard ≈ 97.3333', approxEqual(Calc.itemRate(whiteboardItem, boardSection, catalogue, quote), 97.3333, 0.01));
+    t('rate Woodmatt ≈ 209.8929', approxEqual(Calc.itemRate(woodmattItem, boardSection, catalogue, quote), 209.8929, 0.01));
+
+    t('labourOffice = 93.00', approxEqual(rr.labourOffice, 93.00), rr.labourOffice.toFixed(2));
+    t('boardEdge subtotal ≈ 307.2262', approxEqual(rr.bySection['boardEdge'], 307.2262, 0.01), rr.bySection['boardEdge'].toFixed(4));
+    t('drawers subtotal = 76.00', approxEqual(rr.bySection['drawers'], 76.00));
+    t('handles subtotal = 40.00', approxEqual(rr.bySection['handles'], 40.00));
+    t('hardware subtotal = 22.00', approxEqual(rr.bySection['hardware'], 22.00));
+    t('materials ≈ 445.2262', approxEqual(rr.materials, 445.2262, 0.01), rr.materials.toFixed(4));
+    t('markup (T2) ≈ 151.3769', approxEqual(rr.markup, 151.3769, 0.01), rr.markup.toFixed(4));
+    t('labourWorkshop = 179.00', approxEqual(rr.labourWorkshop, 179.00));
+    const ohHours = rr.officeHours+rr.factoryHours+rr.siteHours+rr.travelHours;
+    t('overhead hours ≈ 2.41667', approxEqual(ohHours, 2.41667, 0.001), ohHours.toFixed(5));
+    t('overheadRecovery ≈ 140.9722', approxEqual(rr.overheadRecovery, 140.9722, 0.01), rr.overheadRecovery.toFixed(4));
+    t('travelCost = 35.00', approxEqual(rr.travelCost, 35.00));
+    t('overheads ≈ 175.9722', approxEqual(rr.overheads, 175.9722, 0.01));
+    t('exGst ≈ 1044.5753', approxEqual(rr.exGst, 1044.5753, 0.01), rr.exGst.toFixed(4));
+    t('incGst ≈ 1149.0328', approxEqual(rr.incGst, 1149.0328, 0.01), rr.incGst.toFixed(4));
+    t('cogs ≈ 842.5210', approxEqual(rr.cogs, 842.5210, 0.01), rr.cogs.toFixed(4));
+    t('cogsRatio ≈ 0.73324', approxEqual(rr.cogsRatio, 0.73324, 0.001), rr.cogsRatio.toFixed(5));
+    t('profit ≈ 306.5118', approxEqual(rr.profit, 306.5118, 0.01), rr.profit.toFixed(4));
+
+    const quoteT4 = deepClone(quote); quoteT4.clientTier='T4';
+    const resT4 = Calc.computeQuote(quoteT4, catalogue).rooms[0].r;
+    t('T4 tier changes only markup', approxEqual(resT4.materials, rr.materials) && approxEqual(resT4.labourOffice, rr.labourOffice)
+      && approxEqual(resT4.labourWorkshop, rr.labourWorkshop) && approxEqual(resT4.overheads, rr.overheads)
+      && approxEqual(resT4.markup, 227.0654, 0.01), 'T4 markup='+resT4.markup.toFixed(4));
+
+    const quoteAdj = deepClone(quote); quoteAdj.rooms[0].adjust = 0.1;
+    const resAdj = Calc.computeQuote(quoteAdj, catalogue).rooms[0].r;
+    t('adjust +10% scales base by 1.1', approxEqual(resAdj.exGst, rr.base*1.1, 0.01));
+
+    const quoteZero = newQuote(); quoteZero.rooms = [newRoom('Empty')];
+    const resZero = Calc.computeQuote(quoteZero, catalogue).rooms[0].r;
+    t('zero-qty room: exGst=0, no NaN, no warning', resZero.exGst===0 && !isNaN(resZero.exGst) && !resZero.warnCogs);
+
+    const diffSame = diffCatalogues(catalogue, catalogue, quote);
+    t('re-price against identical catalogue: zero diff', diffSame.length===0, diffSame.length+' changes');
+
+    const printResult = Calc.computeQuote(quote, catalogue);
+    const printHtml = buildPrintRoot(quote, printResult, catalogue);
+    const forbidden = ['COGS','Markup','Overhead','Adjust','Profit','Margin','Bonus','Materials','Labour'];
+    const tmp = document.createElement('div'); tmp.innerHTML = printHtml;
+    const text = tmp.textContent.toLowerCase();
+    const leaked = forbidden.filter(w=> text.includes(w.toLowerCase()));
+    t('print output has no internal-cost leakage', leaked.length===0, leaked.join(', '));
+
+    const exported = JSON.stringify(quote);
+    const imported = JSON.parse(exported);
+    const resOrig = Calc.computeQuote(quote, catalogue).jobIncGst;
+    const resImp = Calc.computeQuote(imported, catalogue).jobIncGst;
+    t('.joq round-trip: identical totals', approxEqual(resOrig, resImp, 0.001));
+
+    let registryOk = true, registryDetail = '';
+    Registry.fields.forEach(f => { const v = Registry.get(catalogue, f.key); if (v===undefined) { registryOk=false; registryDetail += f.key+' unresolved; '; } });
+    t('registry: every field key resolves against seed catalogue', registryOk, registryDetail);
+
+    let examplesOk = true, exDetail='';
+    Registry.fields.forEach(f => { try { const ex = f.example(catalogue); if (!ex) { examplesOk=false; exDetail+=f.key+' empty; '; } } catch(e){ examplesOk=false; exDetail+=f.key+' threw; '; } });
+    t('registry: every example() returns non-empty', examplesOk, exDetail);
+
+    return results;
+  }
+
+  return { run, fixtureQuote, approxEqual };
+})();
+
+function renderTests() {
+  const results = Tests.run();
+  const pass = results.filter(r=>r.pass).length;
+  const rows = results.map(r=>'<tr><td>'+(r.pass?'<span class="chip good">PASS</span>':'<span class="chip bad">FAIL</span>')+'</td><td>'+escapeHtml(r.name)+'</td><td class="dim small">'+escapeHtml(r.detail)+'</td></tr>').join('');
+  return '<div class="view">'
+    +'<h1>Self-tests</h1><p class="dim">Acceptance tests from the build plan, reproducing the Bathroom column of the source workbook to the cent.</p>'
+    +'<div class="banner '+(pass===results.length?'info':'bad')+'">'+pass+' / '+results.length+' passed</div>'
+    +'<table style="margin-top:14px;"><thead><tr><th></th><th>Test</th><th>Detail</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="row" style="margin-top:16px;"><button data-act="nav" data-route="dashboard">← Back</button></div>'
+    +'</div>';
+}
+
+/* ============================== Actions ============================== */
+const Actions = {
+  'nav': (el) => { go(el.dataset.route); },
+  'run-tests': () => { go('tests'); },
+  'dismiss-checklist': () => { State.dismissedChecklist = true; DB.setMeta('dismissedChecklist', true); render(); },
+  'toggle-include-drafts': (el) => { State.dashboardFilter.includeDrafts = el.checked; DB.setMeta('dashboardFilter', State.dashboardFilter); render(); },
+  'benchmark-lookup': () => { State.benchmarkPick = { roomType: byId('bm-room').value, jobSize: byId('bm-size').value }; render(); },
+
+  'new-quote': () => { const q = newQuote(); State.quotes.push(q); State.currentQuoteId = q.id; State.editorTab='rooms'; go('editor'); },
+  'open-quote': (el) => { State.currentQuoteId = el.dataset.id; State.editorTab='rooms'; go('editor'); },
+  'duplicate-quote': async (el) => {
+    const orig = State.quotes.find(x=>x.id===el.dataset.id); if (!orig) return;
+    const copy = deepClone(orig); copy.id = uid(); copy.jobName = copy.jobName+' (copy)'; copy.status='draft'; copy.revision=1;
+    copy.sentAt=null; copy.decidedAt=null; copy.createdAt=new Date().toISOString(); copy.updatedAt=copy.createdAt;
+    State.quotes.push(copy); await DB.putQuote(copy); render(); toast('Duplicated.');
+  },
+  'delete-quote': async (el) => {
+    if (!confirm('Delete this quote? This cannot be undone.')) return;
+    await DB.deleteQuote(el.dataset.id); State.quotes = State.quotes.filter(x=>x.id!==el.dataset.id); render();
+  },
+  'export-quote-file': async (el) => { const q = State.quotes.find(x=>x.id===el.dataset.id); if (q) await downloadQuoteFile(q); },
+  'open-file-picker': () => { byId('file-input').click(); },
+
+  'add-room': () => {
+    const q = getCurrentQuote(); const dd = State.catalogue.dropdowns.rooms||[];
+    const name = dd.find(n=>!q.rooms.some(r=>r.name===n)) || ('Room '+(q.rooms.length+1));
+    q.rooms.push(newRoom(name)); touchQuote(q); render(); scheduleAutosave();
+  },
+  'duplicate-room': (el) => {
+    const q = getCurrentQuote(); const idx = q.rooms.findIndex(r=>r.id===el.dataset.room);
+    const clone = deepClone(q.rooms[idx]); clone.id = uid(); clone.name = clone.name+' (copy)';
+    q.rooms.splice(idx+1,0,clone); touchQuote(q); render(); scheduleAutosave();
+  },
+  'delete-room': (el) => {
+    if (!confirm('Delete this room?')) return;
+    const q = getCurrentQuote(); q.rooms = q.rooms.filter(r=>r.id!==el.dataset.room); touchQuote(q); render(); scheduleAutosave();
+  },
+  'room-name': (el) => { const q=getCurrentQuote(); const r=q.rooms.find(x=>x.id===el.dataset.room); r.name=el.value; touchQuote(q); render(); scheduleAutosave(); },
+  'room-spec': (el) => { const q=getCurrentQuote(); const r=q.rooms.find(x=>x.id===el.dataset.room); r.spec[el.dataset.field]=el.value; touchQuote(q); render(); scheduleAutosave(); },
+  'room-adjust': (el) => { const q=getCurrentQuote(); const r=q.rooms.find(x=>x.id===el.dataset.room); r.adjust=parseFloat(el.value); touchQuote(q); patchRoomComputed(r.id); scheduleAutosave(); },
+  'remove-item': (el) => {
+    const q = getCurrentQuote(); const r = q.rooms.find(x=>x.id===el.dataset.room);
+    if (r.qty[el.dataset.section]) delete r.qty[el.dataset.section][el.dataset.item];
+    touchQuote(q); render(); scheduleAutosave();
+  },
+  'add-item': (el) => {
+    if (!el.value) return;
+    const q = getCurrentQuote(); const r = q.rooms.find(x=>x.id===el.dataset.room);
+    r.qty[el.dataset.section] = r.qty[el.dataset.section] || {};
+    r.qty[el.dataset.section][el.value] = 1;
+    touchQuote(q); render(); scheduleAutosave();
+    setTimeout(()=>{
+      document.querySelectorAll('[data-role="qty"][data-room="'+r.id+'"][data-section="'+el.dataset.section+'"]').forEach(inp=>{ if (inp.dataset.item===el.value) inp.focus(); });
+    },0);
+  },
+  'quote-tier': (el) => { const q=getCurrentQuote(); q.clientTier=el.value; touchQuote(q); render(); scheduleAutosave(); },
+  'quote-status': (el) => {
+    const q = getCurrentQuote(); const s = el.value;
+    if (s==='sent' && !q.sentAt) q.sentAt = new Date().toISOString();
+    if ((s==='won'||s==='lost') && !q.decidedAt) q.decidedAt = new Date().toISOString();
+    q.status = s; touchQuote(q); render(); scheduleAutosave();
+  },
+  'editor-tab': (el) => { State.editorTab = el.dataset.tab; render(); },
+
+  'save-quote': async () => { await saveCurrentQuote(false); render(); toast('Quote saved.'); },
+  'save-quote-file': async () => { const q=getCurrentQuote(); await saveCurrentQuote(false); await downloadQuoteFile(q); render(); },
+  'export-pdf': async () => { await exportPdf(); State.everExportedPdf = true; await DB.setMeta('everExportedPdf', true); },
+  'reprice': () => { const q=getCurrentQuote(); State.modal = renderRepriceModal(q); State.modalKind=null; render(); },
+  'reprice-apply': async () => {
+    const q = getCurrentQuote(); q.catalogueSnapshot = deepClone(State.catalogue); q.catalogueVersion = State.catalogue.catalogueVersion;
+    q.revision = (q.revision||1)+1; touchQuote(q); await DB.putQuote(q); State.modal = null; render(); toast('Re-priced.');
+  },
+  'close-modal': () => { State.modal = null; State.modalKind = null; render(); },
+  'modal-backdrop-noop': () => {},
+
+  'add-option-manual': () => { State.modal = renderOptionEditModal(getCurrentQuote(), null); State.modalKind=null; render(); },
+  'add-option-computed': () => { State.modal = renderComputedOptionModal(getCurrentQuote()); State.modalKind='computed-option'; render(); },
+  'edit-option': (el) => { const q=getCurrentQuote(); const o=q.options.find(x=>x.id===el.dataset.option); State.modal = renderOptionEditModal(q, o); State.modalKind=null; render(); },
+  'remove-option': (el) => { const q=getCurrentQuote(); q.options=q.options.filter(o=>o.id!==el.dataset.option); touchQuote(q); render(); scheduleAutosave(); },
+  'save-option': (el) => {
+    const q = getCurrentQuote();
+    const label = byId('opt-label').value || 'Option';
+    const roomId = byId('opt-room').value || null;
+    const kind = byId('opt-kind').value;
+    const price = parseFloat(byId('opt-price').value) || 0;
+    if (el.dataset.new === '1') { q.options.push({ id: el.dataset.option, roomId, label, kind, priceIncGst: price, computed: false }); }
+    else { const o = q.options.find(x=>x.id===el.dataset.option); if (o) { o.label=label; o.roomId=roomId; o.kind=kind; o.priceIncGst=price; } }
+    touchQuote(q); State.modal=null; State.modalKind=null; render(); scheduleAutosave();
+  },
+  'compute-option-preview': () => {
+    const q = getCurrentQuote();
+    const roomId = byId('co-room').value, sectionId = byId('co-section').value, fromItem = byId('co-from').value, toItem = byId('co-to').value;
+    if (!roomId || !sectionId || !fromItem || !toItem) return;
+    const delta = computeOptionDelta(q, State.catalogue, roomId, {sectionId, fromItem, toItem});
+    const el = byId('co-preview'); if (el) el.textContent = (delta>=0?'+':'') + fmtMoney(delta);
+  },
+  'save-computed-option': () => {
+    const q = getCurrentQuote();
+    const roomId = byId('co-room').value, sectionId = byId('co-section').value, fromItem = byId('co-from').value, toItem = byId('co-to').value;
+    if (!roomId || !sectionId || !fromItem || !toItem) { toast('Choose a room, section, from-item and to-item.'); return; }
+    const delta = computeOptionDelta(q, State.catalogue, roomId, {sectionId, fromItem, toItem});
+    const room = q.rooms.find(r=>r.id===roomId);
+    q.options.push({ id: uid(), roomId, label: fromItem+' → '+toItem+' ('+room.name+')', kind: sectionId==='boardEdge'?'doorsPanels':(sectionId==='benchtops'?'benchtop':'other'),
+      priceIncGst: delta, computed: true, substitution: {sectionId, fromItem, toItem} });
+    touchQuote(q); State.modal=null; State.modalKind=null; render(); scheduleAutosave();
+  },
+
+  'settings-nav': (el) => { State.settingsTab = el.dataset.tab; render(); },
+  'toggle-field-detail': (el) => { const d = byId(el.dataset.detail); if (d) d.classList.toggle('open'); },
+  'reset-group': (el) => {
+    Registry.groupFields(el.dataset.group).forEach(f => Registry.set(State.catalogue, f.key, f.default));
+    DB.putCatalogue(State.catalogue); render();
+  },
+  'factory-reset': () => {
+    if (!confirm('Reset the entire catalogue to factory defaults? This cannot be undone.')) return;
+    State.catalogue = deepClone(SEED_CATALOGUE); DB.putCatalogue(State.catalogue); render();
+  },
+  'export-catalogue': () => { downloadCatalogueFile(); },
+  'import-catalogue-picker': () => { byId('catalogue-file-input').click(); },
+  'catalogue-section-tab': (el) => { State.catalogueSectionTab = el.dataset.section; render(); },
+  'add-catalogue-item': (el) => {
+    const section = State.catalogue.sections.find(s=>s.id===el.dataset.section);
+    let item = { name: 'New item', rate: 0 };
+    if (section.kind==='board') item = { name:'New item', boardCost:0, edgeCost100m:0, cncProfile:'standard' };
+    if (section.kind==='travel') item = { name:'New item', perKm:0 };
+    section.items.push(item); DB.putCatalogue(State.catalogue); render();
+  },
+  'remove-catalogue-item': (el) => {
+    const section = State.catalogue.sections.find(s=>s.id===el.dataset.section);
+    section.items.splice(Number(el.dataset.idx),1); DB.putCatalogue(State.catalogue); render();
+  },
+  'add-tier': () => { State.catalogue.clientTiers.push({code:'T'+(State.catalogue.clientTiers.length+1), label:'New tier', materialMarkup:1}); DB.putCatalogue(State.catalogue); render(); },
+  'remove-tier': (el) => {
+    if (State.catalogue.clientTiers.length<=1) { toast('At least one tier is required.'); return; }
+    State.catalogue.clientTiers.splice(Number(el.dataset.idx),1); DB.putCatalogue(State.catalogue); render();
+  },
+  'add-dropdown-item': (el) => { State.catalogue.dropdowns[el.dataset.list].push('New item'); DB.putCatalogue(State.catalogue); render(); },
+  'remove-dropdown-item': (el) => { State.catalogue.dropdowns[el.dataset.list].splice(Number(el.dataset.idx),1); DB.putCatalogue(State.catalogue); render(); },
+  'run-wizard-again': () => { State.wizardDraft = deepClone(State.catalogue); State.wizardStep = 0; go('wizard'); },
+
+  'wizard-next': () => { State.wizardStep = Math.min(5, State.wizardStep+1); render(); },
+  'wizard-back': () => { State.wizardStep = Math.max(0, State.wizardStep-1); render(); },
+  'wizard-skip': async () => { await commitWizard(); go(State.quotes.length ? 'dashboard' : 'quotes'); },
+  'wizard-finish': async () => { await commitWizard(); go('dashboard'); },
+  'wizard-finish-new-quote': async () => {
+    await commitWizard();
+    const q = newQuote(); State.quotes.push(q); State.currentQuoteId = q.id; State.editorTab='rooms'; go('editor');
+  },
+};
+
+function renderComputedOptionModal(quote) {
+  const sections = State.catalogue.sections;
+  return function() {
+    const roomOpts = quote.rooms.map(r=>'<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
+    const sectionOpts = sections.map(s=>'<option value="'+s.id+'">'+escapeHtml(s.title)+'</option>').join('');
+    return '<div class="modal-backdrop"><div class="modal">'
+      +'<h2>Add computed option</h2>'
+      +'<p class="dim small">Prices the delta of swapping one item for another within a room.</p>'
+      +'<div class="stack">'
+      +'<div><label>Room</label><select id="co-room">'+roomOpts+'</select></div>'
+      +'<div><label>Section</label><select id="co-section">'+sectionOpts+'</select></div>'
+      +'<div><label>From item (in room)</label><select id="co-from"></select></div>'
+      +'<div><label>To item</label><select id="co-to"></select></div>'
+      +'<div class="row"><button class="small" data-act="compute-option-preview">Preview</button><span id="co-preview" class="money"></span></div>'
+      +'</div>'
+      +'<div class="row" style="margin-top:16px; justify-content:flex-end;">'
+        +'<button class="ghost" data-act="close-modal">Cancel</button>'
+        +'<button class="primary" data-act="save-computed-option">Save</button>'
+      +'</div>'
+      +'</div></div>';
+  };
+}
+
+function refreshComputedOptionSelects() {
+  const roomSel = byId('co-room'), sectionSel = byId('co-section'), fromSel = byId('co-from'), toSel = byId('co-to');
+  if (!roomSel || !sectionSel || !fromSel || !toSel) return;
+  const quote = getCurrentQuote();
+  const room = quote.rooms.find(r=>r.id===roomSel.value);
+  const section = State.catalogue.sections.find(s=>s.id===sectionSel.value);
+  if (!room || !section) return;
+  const qtyMap = room.qty[section.id] || {};
+  fromSel.innerHTML = Object.keys(qtyMap).map(n=>'<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('') || '<option value="">(no items in this section)</option>';
+  toSel.innerHTML = section.items.map(it=>'<option value="'+escapeHtml(it.name)+'">'+escapeHtml(it.name)+'</option>').join('');
+  const prev = byId('co-preview'); if (prev) prev.textContent = '';
+}
+
+function computeOptionDelta(quote, catalogue, roomId, substitution) {
+  const room = quote.rooms.find(r=>r.id===roomId);
+  if (!room) return 0;
+  const cloneRoom = deepClone(room);
+  const qtyMap = cloneRoom.qty[substitution.sectionId] || {};
+  const q = qtyMap[substitution.fromItem] || 0;
+  delete qtyMap[substitution.fromItem];
+  qtyMap[substitution.toItem] = (qtyMap[substitution.toItem]||0) + q;
+  cloneRoom.qty[substitution.sectionId] = qtyMap;
+  const origResult = Calc.computeRoom(room, catalogue, quote);
+  const newResult = Calc.computeRoom(cloneRoom, catalogue, quote);
+  return newResult.incGst - origResult.incGst;
+}
+
+window.State = State;
+window.getCurrentQuote = getCurrentQuote;
+
+/* ============================== bootstrap ============================== */
+initApp();
+</script>
+</body>
+</html>
