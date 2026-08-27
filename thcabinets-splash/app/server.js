@@ -304,12 +304,17 @@ function buildScheduleRow(weekRow) {
     const { bg, fg } = hueColors(a.hue);
     cells[a.day].push({ assignmentId: a.assignment_id, workerId: a.worker_id, name: a.name, bg, fg });
   }
+  const flags = {};
+  for (const key of DAY_KEYS) flags[key] = false;
+  const flagRows = db.prepare("SELECT day FROM day_flags WHERE week_row_id = ?").all(weekRow.id);
+  for (const f of flagRows) flags[f.day] = true;
   return {
     rowId: weekRow.id,
     jobId: weekRow.job_id,
     jobName: weekRow.job_name,
     notes: weekRow.notes,
     cells,
+    flags,
   };
 }
 
@@ -565,6 +570,38 @@ app.delete("/api/assignments/:id", (req, res) => {
     return;
   }
   db.prepare("DELETE FROM assignments WHERE id = ?").run(id);
+  res.status(204).end();
+});
+
+// --- Day flags (installing-only "locked in with client" marker) ---
+
+app.post("/api/rows/:id/flags", (req, res) => {
+  const id = Number(req.params.id);
+  const row = getWeekRowOr404(id, res);
+  if (!row) return;
+  const { day } = req.body;
+  if (!DAY_KEYS.includes(day)) {
+    res.status(400).json({ error: "day must be one of " + DAY_KEYS.join(", ") });
+    return;
+  }
+  if (row.panel !== "installing") {
+    res.status(400).json({ error: "Only installing rows can be flagged" });
+    return;
+  }
+  db.prepare("INSERT OR IGNORE INTO day_flags (week_row_id, day) VALUES (?, ?)").run(id, day);
+  res.status(201).json({ day, flagged: true });
+});
+
+app.delete("/api/rows/:id/flags/:day", (req, res) => {
+  const id = Number(req.params.id);
+  const row = getWeekRowOr404(id, res);
+  if (!row) return;
+  const day = req.params.day;
+  if (!DAY_KEYS.includes(day)) {
+    res.status(400).json({ error: "day must be one of " + DAY_KEYS.join(", ") });
+    return;
+  }
+  db.prepare("DELETE FROM day_flags WHERE week_row_id = ? AND day = ?").run(id, day);
   res.status(204).end();
 });
 

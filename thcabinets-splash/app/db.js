@@ -55,8 +55,17 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS day_flags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_row_id INTEGER NOT NULL REFERENCES week_rows(id),
+    day TEXT NOT NULL CHECK(day IN ('mon','tue','wed','thu','fri')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(week_row_id, day)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_week_rows_lookup ON week_rows(week_start, panel, sort_order);
   CREATE INDEX IF NOT EXISTS idx_assignments_row ON assignments(week_row_id, day);
+  CREATE INDEX IF NOT EXISTS idx_day_flags_row ON day_flags(week_row_id);
 `);
 
 // Seed a starter worker roster on first run, so the schedule isn't blank on install.

@@ -141,6 +141,38 @@ jobs:
           curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
             | jq -e ".weeks[1].manufacturing[] | select(.rowId == $dup_row_id) | .cells.mon[] | select(.workerId == $worker_id)" > /dev/null
 
+          echo "Adding a job row to week 1 installing (for flag testing)..."
+          install_row=$(curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"weekStart\":\"$week1_start\",\"panel\":\"installing\",\"jobId\":$job_id}" \
+            http://localhost:3000/api/rows)
+          install_row_id=$(echo "$install_row" | jq -r '.rowId')
+          [ "$install_row_id" != "null" ] || { echo "No rowId returned: $install_row" >&2; exit 1; }
+
+          echo "Flagging Tuesday as locked in on the installing row..."
+          curl -sf -X POST -H "Content-Type: application/json" -d '{"day":"tue"}' \
+            "http://localhost:3000/api/rows/$install_row_id/flags" | jq -e '.flagged == true' > /dev/null
+
+          echo "Confirming the flag shows up in the schedule response..."
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e ".weeks[0].installing[] | select(.rowId == $install_row_id) | .flags.tue == true" > /dev/null
+
+          echo "Flagging a manufacturing row should be rejected..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d '{"day":"mon"}' \
+            "http://localhost:3000/api/rows/$row_id/flags")
+          [ "$status" = "400" ] || { echo "Expected 400 flagging a manufacturing row, got $status" >&2; exit 1; }
+
+          echo "Unflagging Tuesday..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/rows/$install_row_id/flags/tue")
+          [ "$status" = "204" ] || { echo "Expected 204 unflagging, got $status" >&2; exit 1; }
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e ".weeks[0].installing[] | select(.rowId == $install_row_id) | .flags.tue == false" > /dev/null
+
+          echo "Cleaning up the installing row..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/rows/$install_row_id")
+          [ "$status" = "204" ] || { echo "Expected 204 deleting installing row, got $status" >&2; exit 1; }
+
+          echo "Flag smoke test passed."
+
           echo "Archiving the CI worker..."
           curl -sf -X PATCH -H "Content-Type: application/json" -d '{"archived":true}' \
             "http://localhost:3000/api/workers/$worker_id" | jq -e '.archived == true' > /dev/null

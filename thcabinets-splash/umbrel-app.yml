@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.5.0"
+version: "1.6.0"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,13 +20,11 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  New: a live Schedule board at /schedule.html, replacing the paper
-  whiteboard for weekly manufacturing/installing planning. Jobs are rows,
-  Mon-Fri are columns, split into Manufacturing and Installing panels per
-  week, with colour-coded worker chips per day — browse any past or future
-  week, add/rename/reorder/duplicate job rows, and export a week as PDF or
-  JPG. A Workers page manages the crew roster and chip colours. The splash
-  page now also links directly to the photo upload/admin tool.
+  Schedule board sized up ~20% (text, controls, and the page width) so it's
+  easy to read on both a laptop and a TV mirroring it. Installing-panel days
+  can now be flagged as "locked in with client" — a precaution marker
+  anyone can toggle so the team knows an install date has already been
+  confirmed; doesn't affect manufacturing days.
 dependencies: []
 path: ""
 defaultUsername: ""

@@ -226,19 +226,44 @@
     rowDiv.appendChild(jobCell);
 
     DAY_KEYS.forEach((day, i) => {
+      const flagged = !!(row.flags && row.flags[day]);
       const cell = document.createElement("div");
-      cell.className = "sched-cell" + (i === todayIndex ? " today-col" : "");
+      cell.className = "sched-cell" + (i === todayIndex ? " today-col" : "") + (flagged ? " flagged" : "");
       const chips = document.createElement("div");
       chips.className = "sched-chips";
       for (const chip of row.cells[day]) chips.appendChild(chipEl(chip));
       cell.appendChild(chips);
+
+      const controls = document.createElement("div");
+      controls.className = "cell-controls";
       const addBtn = document.createElement("button");
       addBtn.type = "button";
       addBtn.className = "cell-add";
       addBtn.textContent = "+";
       addBtn.title = "Add worker";
       addBtn.addEventListener("click", () => openPopover(addBtn, row.rowId, day));
-      cell.appendChild(addBtn);
+      controls.appendChild(addBtn);
+
+      if (panelKey === "installing") {
+        const flagBtn = document.createElement("button");
+        flagBtn.type = "button";
+        flagBtn.className = "cell-flag" + (flagged ? " active" : "");
+        flagBtn.title = flagged
+          ? "Locked in with client — click to unflag"
+          : "Flag as locked in with client";
+        flagBtn.innerHTML = `<i class="ph ${flagged ? "ph-flag-fill" : "ph-flag"}"></i>`;
+        flagBtn.addEventListener("click", guarded(async () => {
+          if (flagged) {
+            await api(`/api/rows/${row.rowId}/flags/${day}`, { method: "DELETE" });
+          } else {
+            await api(`/api/rows/${row.rowId}/flags`, { method: "POST", body: JSON.stringify({ day }) });
+          }
+          await refresh();
+        }));
+        controls.appendChild(flagBtn);
+      }
+
+      cell.appendChild(controls);
       rowDiv.appendChild(cell);
     });
 
