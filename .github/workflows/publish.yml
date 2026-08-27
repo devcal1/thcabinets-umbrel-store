@@ -8,6 +8,14 @@ on:
       - ".github/workflows/publish.yml"
   workflow_dispatch: {}
 
+# A new push cancels any still-running build for the same branch, rather than
+# leaving an old run to hang around (or occasionally stall for a long time on
+# the multi-arch build step — a GitHub Actions runner/cache issue, not this
+# workflow's code) alongside a newer one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/thcabinets-web
 
