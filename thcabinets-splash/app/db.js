@@ -5,6 +5,13 @@ const Database = require("better-sqlite3");
 const DB_DIR = process.env.DB_DIR || path.join(__dirname, "db");
 fs.mkdirSync(DB_DIR, { recursive: true });
 
+// File is named photos.db from when this app only handled the photo library,
+// but it now also holds the entire live schedule (workers/jobs/week_rows/
+// assignments/day_flags) — a real business's daily-use data, not a demo.
+// Do NOT rename this file: the deployed Umbrel volume stores data under this
+// exact name, and a rename without migrating it boots the app with an empty
+// schedule (the seed block below would then silently recreate a fresh
+// six-worker roster, masking the loss until someone notices real data is gone).
 const db = new Database(path.join(DB_DIR, "photos.db"));
 db.pragma("journal_mode = WAL");
 

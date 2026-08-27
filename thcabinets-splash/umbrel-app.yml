@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.6.0"
+version: "1.6.1"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,11 +20,10 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Schedule board sized up ~20% (text, controls, and the page width) so it's
-  easy to read on both a laptop and a TV mirroring it. Installing-panel days
-  can now be flagged as "locked in with client" — a precaution marker
-  anyone can toggle so the team knows an install date has already been
-  confirmed; doesn't affect manufacturing days.
+  Internal cleanup, no visible changes: removed duplicated JS/CSS between
+  pages, fixed the JPG schedule export missing the "locked in" flag markers,
+  and vendored the icon font and search library locally instead of loading
+  them from a CDN (so the app keeps working if the internet's down).
 dependencies: []
 path: ""
 defaultUsername: ""

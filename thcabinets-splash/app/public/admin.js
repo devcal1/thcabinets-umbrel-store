@@ -96,6 +96,43 @@
     return err.message || "Couldn't get suggestions for this photo.";
   }
 
+  // A suggested-tag chip: clicking it runs onPick(tag) and removes itself on
+  // success, leaving the chip in place (with an error status) on failure.
+  function makeTagChip(tag, onPick) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "tag-chip";
+    chip.textContent = tag;
+    chip.addEventListener("click", async () => {
+      try {
+        await onPick(tag);
+        chip.remove();
+      } catch {
+        setStatus("Failed to add tag.", "error");
+      }
+    });
+    return chip;
+  }
+
+  function formatUploadFailures(failed) {
+    return failed.map((f) => `${f.filename} (${f.error})`).join("; ");
+  }
+
+  // Shared by the single-form upload and the bulk-folder import — POSTs a
+  // batch of files with one tag string and returns the {created, failed}
+  // split, or throws if the whole request failed outright.
+  async function uploadPhotos(files, tags) {
+    const formData = new FormData();
+    for (const file of files) formData.append("photos", file);
+    formData.append("tags", tags);
+    const res = await fetch("/api/photos", { method: "POST", body: formData });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok && !body.created) {
+      throw new Error(body.error || "Upload failed");
+    }
+    return { created: body.created || [], failed: body.failed || [] };
+  }
+
   function renderRow(photo) {
     const tr = document.createElement("tr");
 
@@ -174,21 +211,11 @@
           setStatus("No suggestions for this photo.", "error");
         }
         for (const tag of tags) {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = "tag-chip";
-          chip.textContent = tag;
-          chip.addEventListener("click", async () => {
-            const combined = withAppendedTags(tagsField.value, [tag]);
-            try {
-              await saveTags(photo.id, combined);
-              tagsField.value = combined;
-              chip.remove();
-            } catch {
-              setStatus("Failed to add tag.", "error");
-            }
-          });
-          rowChips.appendChild(chip);
+          rowChips.appendChild(makeTagChip(tag, async (t) => {
+            const combined = withAppendedTags(tagsField.value, [t]);
+            await saveTags(photo.id, combined);
+            tagsField.value = combined;
+          }));
         }
       } catch (err) {
         setStatus(suggestionErrorMessage(err), "error");
@@ -254,27 +281,14 @@
     e.preventDefault();
     if (!filesInput.files.length) return;
 
-    const formData = new FormData();
-    for (const file of filesInput.files) {
-      formData.append("photos", file);
-    }
-    formData.append("tags", tagsInput.value);
-
     uploadBtn.disabled = true;
     setStatus(`Uploading ${filesInput.files.length} photo(s)…`);
     try {
-      const res = await fetch("/api/photos", { method: "POST", body: formData });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok && !body.created) {
-        throw new Error(body.error || "Upload failed");
-      }
-      const created = body.created || [];
-      const failed = body.failed || [];
+      const { created, failed } = await uploadPhotos([...filesInput.files], tagsInput.value);
       if (failed.length === 0) {
         setStatus("Upload complete.", "ok");
       } else {
-        const detail = failed.map((f) => `${f.filename} (${f.error})`).join("; ");
-        setStatus(`Uploaded ${created.length} of ${created.length + failed.length} — failed: ${detail}`, "error");
+        setStatus(`Uploaded ${created.length} of ${created.length + failed.length} — failed: ${formatUploadFailures(failed)}`, "error");
       }
       form.reset();
       clearFilePreview();
@@ -321,19 +335,17 @@
 
     setStatus("");
     for (const tag of suggested) {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "tag-chip";
-      chip.textContent = tag;
-      chip.addEventListener("click", () => {
-        tagsInput.value = withAppendedTags(tagsInput.value, [tag]);
-        chip.remove();
-      });
-      suggestChips.appendChild(chip);
+      suggestChips.appendChild(makeTagChip(tag, (t) => {
+        tagsInput.value = withAppendedTags(tagsInput.value, [t]);
+      }));
     }
   });
 
   // — Bulk folder import —
+  // ALLOWED_EXT/MAX_BULK_FILE_BYTES mirror ALLOWED_MIME/MAX_FILE_BYTES in
+  // server.js — this is just a client-side pre-filter for a better UX
+  // (skip obviously-bad files before uploading), the server enforces the
+  // real limit regardless. Keep both in sync by hand if either changes.
   const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".webp"]);
   const MAX_BULK_FILE_BYTES = 25 * 1024 * 1024;
   const IGNORE_FILENAMES = new Set(["thumbs.db", "desktop.ini", ".ds_store"]);
@@ -473,21 +485,10 @@
     for (const group of selected) {
       done += 1;
       setBulkStatus(`Importing ${done}/${selected.length}: ${group.folder} (${group.files.length} photos)…`);
-      const formData = new FormData();
-      for (const file of group.files) formData.append("photos", file);
-      formData.append("tags", group.tagInput.value);
-
       try {
-        const res = await fetch("/api/photos", { method: "POST", body: formData });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok && !body.created) {
-          problems.push(`${group.folder}: ${body.error || "request failed"}`);
-          continue;
-        }
-        const failed = body.failed || [];
+        const { failed } = await uploadPhotos(group.files, group.tagInput.value);
         if (failed.length > 0) {
-          const detail = failed.map((f) => `${f.filename} (${f.error})`).join("; ");
-          problems.push(`${group.folder}: ${failed.length} of ${group.files.length} failed — ${detail}`);
+          problems.push(`${group.folder}: ${failed.length} of ${group.files.length} failed — ${formatUploadFailures(failed)}`);
         }
       } catch (e) {
         problems.push(`${group.folder}: ${e.message || "network error"}`);

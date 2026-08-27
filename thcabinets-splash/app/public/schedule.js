@@ -43,39 +43,7 @@
     return formatDate(d);
   }
 
-  function toast(msg) {
-    const el = document.createElement("div");
-    el.textContent = msg;
-    el.style.cssText =
-      "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--color-surface);" +
-      "color:var(--color-text);border:1px solid var(--color-divider);border-radius:8px;padding:8px 14px;" +
-      "font-size:13px;z-index:50;box-shadow:var(--shadow-md)";
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1800);
-  }
-
-  function guarded(fn) {
-    return async (...args) => {
-      try {
-        await fn(...args);
-      } catch (e) {
-        toast(`Error: ${e.message}`);
-      }
-    };
-  }
-
-  async function api(path, options) {
-    const res = await fetch(path, {
-      ...options,
-      headers: { "Content-Type": "application/json", ...(options && options.headers) },
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `Request failed (${res.status})`);
-    }
-    if (res.status === 204) return null;
-    return res.json();
-  }
+  // api(), toast(), guarded() now live in shared.js, loaded before this file.
 
   // --- data loading ---
   async function loadWorkers() {
@@ -520,6 +488,13 @@
           ctx.fillText(row.jobName, x, py + h / 2, jobW - 10);
 
           DAY_KEYS.forEach((day, i) => {
+            const cellX = x + jobW + i * dayW;
+            if (key === "installing" && row.flags && row.flags[day]) {
+              ctx.fillStyle = "rgba(232, 179, 57, 0.12)";
+              ctx.fillRect(cellX, py, dayW, h);
+              ctx.fillStyle = "#e8b339";
+              ctx.fillRect(cellX, py, 3, h);
+            }
             let cy = py + rowPad;
             for (const chip of row.cells[day]) {
               const cx = x + jobW + i * dayW + 4;

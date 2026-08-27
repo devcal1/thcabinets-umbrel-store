@@ -1,14 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('tokens.css');
 
 :root {
+  /* Intentionally darker/more purple than search.css/schedule.css's logo-matched
+     black — this page was always meant to read as an internal tool, not the
+     customer-facing pages. Don't "fix" this to match them. */
   --color-bg: #161826;
-  --color-surface: #232532;
-  --color-text: #e9e9ed;
-  --color-accent: #9184d9;
-  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
-  --color-neutral-500: #9397ab;
-
-  --font: "Inter", system-ui, sans-serif;
 
   --space-2: 5.6px;
   --space-3: 8.4px;
@@ -21,7 +17,6 @@
   --radius-lg: 14px;
 }
 
-* { box-sizing: border-box; }
 html, body { margin: 0; background: var(--color-bg); }
 body {
   color: var(--color-text);

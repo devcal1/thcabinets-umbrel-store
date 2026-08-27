@@ -1,18 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('tokens.css');
 
 :root {
+  /* Matched to logo.png's own background pixel color, same as search.css. */
   --color-bg: #0a0607;
-  --color-surface: #232532;
-  --color-text: #e9e9ed;
-  --color-accent: #9184d9;
-  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
 
-  --color-neutral-500: #9397ab;
-  --color-neutral-800: #3f424d;
-  --color-neutral-900: #292b31;
-
-  --font: "Inter", system-ui, sans-serif;
-
+  /* This page's spacing/radius scale is ~1.2x the base used elsewhere —
+     deliberately larger so the schedule board reads clearly on a workshop TV
+     mirroring a laptop. Page-local by design, not drift from search/admin. */
   --space-2: 6.7px;
   --space-3: 10px;
   --space-4: 13.4px;
@@ -26,8 +20,6 @@
   --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 }
-
-* { box-sizing: border-box; }
 
 html, body {
   margin: 0;

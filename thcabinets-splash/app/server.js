@@ -30,6 +30,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/photos", express.static(UPLOADS_DIR, { maxAge: "30d", immutable: true }));
 
+// Kept in sync by hand with ALLOWED_EXT/MAX_BULK_FILE_BYTES in public/admin.js —
+// those are a client-side pre-filter for a better UX, this is the real check.
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const THUMB_WIDTH = 700;
@@ -237,7 +239,6 @@ app.delete("/api/photos/:id", (req, res) => {
 // ---------------------------------------------------------------------------
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri"];
-const DAY_LABELS = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
