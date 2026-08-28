@@ -78,12 +78,23 @@ schedule data or anything else with production-data risk.
   `joinery-quoter/` stripped from history via `git filter-repo`. **Commit hashes
   from before that date resolve to nothing** — don't cite them. Older GHCR tags
   (`sha-dd06108…` etc.) are orphaned but harmless.
-- **CI red-run fix applied, unverified.** The only run on the old workflow failed
-  at step 8 "Build and push multi-arch image" even though the publish succeeded
-  (suspected GHA cache-export failure). Both `cache-to:` lines now carry
-  `ignore-error=true`; if a run still goes red after this, the cache theory was
-  wrong — read the log (needs repo admin) instead of stacking more guesses. CI
-  also now fails fast if `app/` changes without a `version:` bump.
+- **CI red root cause found: GHCR write access, not caching.** Both runs on the
+  recreated repo failed at "Build and push multi-arch image" with
+  `denied: permission_denied: write_package` (visible in the check-run
+  annotations). The `thcabinets-web` package survived the 2026-08-27 repo
+  deletion, but its Actions-access grant pointed at the *old* repo, so the new
+  repo's `GITHUB_TOKEN` can't push. **No run on the recreated repo has ever
+  published** — `sha-1269d7a`/`sha-992a169` don't exist on GHCR; `:latest` is
+  still the pre-recreation image (same app content by luck: 1269d7a was
+  workflow-only). The earlier "publish succeeded, suspected cache-export
+  failure" note was a misdiagnosis. Fix (owner, in browser): package settings →
+  https://github.com/users/devcal1/packages/container/thcabinets-web/settings →
+  Manage Actions access → add `devcal1/thcabinets-umbrel-store` with **Write**,
+  then re-run the failed workflow. Don't delete/recreate the package instead —
+  the Umbrel pulls `:latest` from it. The `ignore-error=true` on `cache-to:` is
+  kept (harmless, and cache-service flakes remain possible). Build, version
+  guard, and the extended smoke test all pass — 1.7.0 is ready to publish the
+  moment access is granted.
 
 ## Known issues / deferred
 
