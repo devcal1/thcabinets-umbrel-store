@@ -49,6 +49,10 @@
   }
 
   function withAppendedTags(existingValue, tagsToAdd) {
+    // Normalize additions through the same splitter as the existing value, so
+    // a suggestion like "matte black, brass hardware" can't defeat the dedupe
+    // or smuggle a comma into a single tag.
+    tagsToAdd = tagsToAdd.flatMap((t) => splitTags(t));
     const existing = splitTags(existingValue);
     const existingLower = new Set(existing.map((t) => t.toLowerCase()));
     for (const t of tagsToAdd) {
@@ -82,11 +86,31 @@
     return body.tags || [];
   }
 
-  async function fetchPhotoAsFile(photo) {
-    const res = await fetch(photo.url);
+  async function fetchPhotoAsFile(url) {
+    const res = await fetch(url);
     if (!res.ok) throw new Error("Couldn't load the photo");
     const blob = await res.blob();
-    return new File([blob], "photo", { type: blob.type || "image/jpeg" });
+    return new File([blob], "photo", { type: blob.type || "image/webp" });
+  }
+
+  // Run fn over items with at most `limit` in flight, returning
+  // Promise.allSettled-shaped results in input order.
+  async function mapWithLimit(items, limit, fn) {
+    const results = new Array(items.length);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (next < items.length) {
+          const i = next++;
+          try {
+            results[i] = { status: "fulfilled", value: await fn(items[i]) };
+          } catch (reason) {
+            results[i] = { status: "rejected", reason };
+          }
+        }
+      })
+    );
+    return results;
   }
 
   function suggestionErrorMessage(err) {
@@ -118,19 +142,39 @@
     return failed.map((f) => `${f.filename} (${f.error})`).join("; ");
   }
 
+  // Mirrors upload.array("photos", 100)'s maxCount in server.js — a single
+  // request over that cap is rejected wholesale, so batches are chunked here.
+  // Keep both in sync by hand if either changes.
+  const MAX_FILES_PER_REQUEST = 100;
+
   // Shared by the single-form upload and the bulk-folder import — POSTs a
-  // batch of files with one tag string and returns the {created, failed}
-  // split, or throws if the whole request failed outright.
+  // batch of files with one tag string (chunked to the server's per-request
+  // cap) and returns the combined {created, failed} split. Throws only if the
+  // first chunk fails outright, before anything has been recorded; a failure
+  // after earlier chunks landed becomes failed[] entries instead, so the
+  // caller never mistakes a partial import for a clean miss.
   async function uploadPhotos(files, tags) {
-    const formData = new FormData();
-    for (const file of files) formData.append("photos", file);
-    formData.append("tags", tags);
-    const res = await fetch("/api/photos", { method: "POST", body: formData });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok && !body.created) {
-      throw new Error(body.error || "Upload failed");
+    const created = [];
+    const failed = [];
+    for (let i = 0; i < files.length; i += MAX_FILES_PER_REQUEST) {
+      const chunk = files.slice(i, i + MAX_FILES_PER_REQUEST);
+      try {
+        const formData = new FormData();
+        for (const file of chunk) formData.append("photos", file);
+        formData.append("tags", tags);
+        const res = await fetch("/api/photos", { method: "POST", body: formData });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok && !body.created) {
+          throw new Error(body.error || "Upload failed");
+        }
+        created.push(...(body.created || []));
+        failed.push(...(body.failed || []));
+      } catch (e) {
+        if (created.length === 0 && failed.length === 0) throw e;
+        failed.push(...chunk.map((f) => ({ filename: f.name, error: e.message || "network error" })));
+      }
     }
-    return { created: body.created || [], failed: body.failed || [] };
+    return { created, failed };
   }
 
   function renderRow(photo) {
@@ -205,7 +249,9 @@
       const originalLabel = rowSuggestBtn.textContent;
       rowSuggestBtn.textContent = "Suggesting…";
       try {
-        const file = await fetchPhotoAsFile(photo);
+        // The 700px thumb, not the original: plenty for tagging, and a full
+        // 20MB+ DSLR original base64-expands past Gemini's inline size cap.
+        const file = await fetchPhotoAsFile(photo.thumbUrl);
         const tags = await suggestTagsForFile(file);
         if (tags.length === 0) {
           setStatus("No suggestions for this photo.", "error");
@@ -287,10 +333,15 @@
       const { created, failed } = await uploadPhotos([...filesInput.files], tagsInput.value);
       if (failed.length === 0) {
         setStatus("Upload complete.", "ok");
+        form.reset();
       } else {
         setStatus(`Uploaded ${created.length} of ${created.length + failed.length} — failed: ${formatUploadFailures(failed)}`, "error");
+        // Keep the typed tags for the retry, but clear the file selection so
+        // re-submitting can't duplicate the photos that already made it in.
+        const tags = tagsInput.value;
+        form.reset();
+        tagsInput.value = tags;
       }
-      form.reset();
       clearFilePreview();
       clearSuggestions();
       await loadPhotos();
@@ -311,7 +362,10 @@
     clearSuggestions();
     setStatus(`Looking at ${filesInput.files.length} photo(s)…`);
 
-    const results = await Promise.allSettled([...filesInput.files].map(suggestTagsForFile));
+    // Capped concurrency: an uncapped fan-out of full-size uploads buffers
+    // multiples of 25MB in server memory and burns through the free Gemini
+    // tier's per-minute rate limit in one burst.
+    const results = await mapWithLimit([...filesInput.files], 3, suggestTagsForFile);
     suggestBtn.disabled = false;
 
     const notConfigured = results.some((r) => r.status === "rejected" && r.reason?.code === "NOT_CONFIGURED");
@@ -333,7 +387,8 @@
       return;
     }
 
-    setStatus("");
+    const okCount = results.filter((r) => r.status === "fulfilled").length;
+    setStatus(okCount === results.length ? "" : `Got suggestions from ${okCount} of ${results.length} photo(s).`);
     for (const tag of suggested) {
       suggestChips.appendChild(makeTagChip(tag, (t) => {
         tagsInput.value = withAppendedTags(tagsInput.value, [t]);
@@ -439,7 +494,7 @@
       tr.appendChild(countTd);
 
       bulkReviewTbody.appendChild(tr);
-      bulkGroups.push({ folder, tagInput, checkbox, files });
+      bulkGroups.push({ folder, tagInput, checkbox, files, tr });
     }
 
     if (skipped.length === 0) {
@@ -486,9 +541,19 @@
       done += 1;
       setBulkStatus(`Importing ${done}/${selected.length}: ${group.folder} (${group.files.length} photos)…`);
       try {
-        const { failed } = await uploadPhotos(group.files, group.tagInput.value);
+        const { created, failed } = await uploadPhotos(group.files, group.tagInput.value);
         if (failed.length > 0) {
-          problems.push(`${group.folder}: ${failed.length} of ${group.files.length} failed — ${formatUploadFailures(failed)}`);
+          const duplicateNote = created.length > 0
+            ? ` (re-importing this folder would duplicate the ${created.length} that succeeded)`
+            : "";
+          problems.push(`${group.folder}: ${failed.length} of ${group.files.length} failed — ${formatUploadFailures(failed)}${duplicateNote}`);
+        } else {
+          // Imported clean — uncheck and lock the row so a retry after
+          // "Finished with issues" can't re-send it and duplicate its photos.
+          group.checkbox.checked = false;
+          group.checkbox.disabled = true;
+          group.tagInput.disabled = true;
+          group.tr.style.opacity = "0.55";
         }
       } catch (e) {
         problems.push(`${group.folder}: ${e.message || "network error"}`);

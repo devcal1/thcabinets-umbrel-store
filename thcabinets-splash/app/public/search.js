@@ -46,6 +46,7 @@
   }
 
   function applyFilter() {
+    if (!fuse) return; // photos still loading (or failed to) — nothing to search yet
     const q = input.value.trim();
     if (!q) {
       render(allPhotos);
@@ -85,7 +86,9 @@
         threshold: 0.35,
         ignoreLocation: true,
       });
-      render(allPhotos);
+      // applyFilter, not render(allPhotos): honours anything typed while the
+      // photos were still loading.
+      applyFilter();
     })
     .catch(() => {
       resultCount.textContent = "Couldn't load photos.";

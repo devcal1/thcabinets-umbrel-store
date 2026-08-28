@@ -35,6 +35,9 @@ function guarded(fn) {
   };
 }
 
+// Kept in sync by hand with hueColors() in server.js — the server copy is
+// authoritative (it colors the chips the board and JPG export show); this one
+// only drives the workers-page hue-slider preview.
 function hueColors(hue) {
   return { bg: `oklch(30% 0.06 ${hue})`, fg: `oklch(86% 0.10 ${hue})` };
 }

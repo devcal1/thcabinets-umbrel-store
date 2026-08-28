@@ -17,6 +17,10 @@
     weeks: [],
     weekStart: mondayOf(localTodayStr()),
   };
+  // The local date the board was last successfully rendered for — drives the
+  // midnight rollover check so an always-on TV doesn't keep highlighting
+  // yesterday's column.
+  let renderedToday = localTodayStr();
 
   // --- date helpers (client-local, so "today" always matches the browser) ---
   function localTodayStr() {
@@ -93,9 +97,7 @@
   }
 
   // --- worker picker popover ---
-  let popoverTarget = null;
   function openPopover(anchorEl, rowId, day) {
-    popoverTarget = { rowId, day };
     popover.innerHTML = "";
     const active = state.workers.filter((w) => !w.archived);
     if (active.length === 0) {
@@ -125,14 +127,18 @@
       }));
       popover.appendChild(btn);
     }
+    // Unhide before measuring (display:none reads 0x0), then clamp to the
+    // viewport — flipping above the anchor when there's no room below.
     const rect = anchorEl.getBoundingClientRect();
-    popover.style.left = `${Math.min(rect.left, window.innerWidth - 180)}px`;
-    popover.style.top = `${rect.bottom + 4}px`;
     popover.hidden = false;
+    const pw = popover.offsetWidth;
+    const ph = popover.offsetHeight;
+    popover.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8))}px`;
+    const below = rect.bottom + 4;
+    popover.style.top = `${below + ph > window.innerHeight ? Math.max(8, rect.top - ph - 4) : below}px`;
   }
   function closePopover() {
     popover.hidden = true;
-    popoverTarget = null;
   }
   document.addEventListener("click", (e) => {
     if (!popover.hidden && !popover.contains(e.target) && !e.target.closest(".cell-add")) {
@@ -328,7 +334,6 @@
       else body.jobName = name;
       await api("/api/rows", { method: "POST", body: JSON.stringify(body) });
       input.value = "";
-      await loadJobs();
       await refresh();
     });
     addBtn.addEventListener("click", submitAdd);
@@ -343,6 +348,13 @@
   }
 
   function renderWeeks() {
+    // The rebuild below wipes every notes panel — snapshot the open ones (and
+    // any unsaved draft text) so a chip/flag edit elsewhere can't destroy them.
+    const openNotes = new Map();
+    for (const el of weeksContainer.querySelectorAll(".job-notes:not([hidden])")) {
+      openNotes.set(el.id, el.querySelector("textarea").value);
+    }
+
     weeksContainer.innerHTML = "";
 
     let datalist = document.getElementById("jobNamesList");
@@ -381,10 +393,21 @@
 
       weeksContainer.appendChild(section);
     }
+
+    for (const [id, draft] of openNotes) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.hidden = false;
+      const textarea = el.querySelector("textarea");
+      if (textarea.value !== draft) textarea.value = draft;
+    }
   }
 
   async function refresh() {
-    await Promise.all([loadWorkers(), loadSchedule()]);
+    // jobs included so a rename can't leave the add-job autocomplete offering
+    // stale names (which silently creates duplicate jobs server-side).
+    await Promise.all([loadWorkers(), loadJobs(), loadSchedule()]);
+    renderedToday = localTodayStr();
     renderLegend();
     renderWeeks();
     weekPicker.value = state.weekStart;
@@ -413,6 +436,10 @@
 
   // --- JPG export: drawn straight from the loaded data, not a DOM screenshot ---
   function exportJpg() {
+    if (!state.weeks.length) {
+      toast("Nothing to export yet");
+      return;
+    }
     const dayW = 132;
     const jobW = 190;
     const panelW = jobW + dayW * 5;
@@ -524,6 +551,10 @@
 
     canvas.toBlob(
       (blob) => {
+        if (!blob) {
+          toast("Export failed");
+          return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -546,10 +577,24 @@
     ctx.closePath();
   }
 
+  // The board lives on an always-on workshop TV: once the local date rolls
+  // over, re-render so the today highlight moves — and if the viewer was on
+  // the current week, re-anchor so a new week surfaces on Monday morning.
+  setInterval(async () => {
+    const now = localTodayStr();
+    if (now === renderedToday) return;
+    try {
+      if (state.weekStart === mondayOf(renderedToday)) state.weekStart = mondayOf(now);
+      await refresh();
+    } catch {
+      // Server may be mid-restart overnight; renderedToday only advances on a
+      // successful refresh, so the next tick retries.
+    }
+  }, 60000);
+
   // --- boot ---
   (async function init() {
     try {
-      await loadJobs();
       await refresh();
     } catch (e) {
       weeksContainer.innerHTML = `<div class="empty-schedule">Couldn't load the schedule: ${e.message}</div>`;

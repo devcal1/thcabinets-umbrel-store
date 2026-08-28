@@ -157,7 +157,7 @@ main {
 
 .panel h3 { margin: 0 0 var(--space-3); font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent); }
 
-.sched-grid { width: 100%; font-size: 16px; border-collapse: collapse; }
+.sched-grid { width: 100%; font-size: 16px; }
 .sched-row {
   display: grid;
   grid-template-columns: 204px repeat(5, 1fr);
@@ -290,4 +290,18 @@ main {
   body { background: #fff; color: #111; }
   .job-notes { color: #111; }
   main { max-width: none; padding: 0 var(--space-4); }
+  /* Dark-theme text colors don't inherit body's print override — without
+     these, job names and headers print near-white on white. */
+  .job-name,
+  .panel h3,
+  .sched-row.sched-head,
+  .sched-row.sched-head > div,
+  .text-muted { color: #111 !important; }
+  /* Chips keep their dark bg + light text pair; flagged cells keep the amber
+     wash. Browsers strip backgrounds when printing unless told otherwise. */
+  .chip-worker,
+  .sched-cell.flagged { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Borders always print, so the lock-in marker survives even when the
+     browser's "background graphics" option is off. */
+  .sched-cell.flagged { border-left: 3px solid #a97d17; }
 }

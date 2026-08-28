@@ -36,12 +36,20 @@ const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const THUMB_WIDTH = 700;
 
+// The stored extension drives the Content-Type express.static serves from
+// /photos, so it must come from the validated mimetype — never from the
+// client-controlled original filename.
+const EXT_BY_MIME = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOADS_DIR),
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-      cb(null, `${crypto.randomUUID()}${ext}`);
+      cb(null, `${crypto.randomUUID()}${EXT_BY_MIME[file.mimetype] || ".jpg"}`);
     },
   }),
   limits: { fileSize: MAX_FILE_BYTES },
@@ -156,11 +164,16 @@ app.post("/api/photos", (req, res) => {
     const created = [];
     const failed = [];
     for (const file of files) {
+      const thumbFilename = `${path.parse(file.filename).name}-thumb.webp`;
       try {
         const image = sharp(file.path);
         const metadata = await image.metadata();
-        const thumbFilename = `${path.parse(file.filename).name}-thumb.webp`;
+        // sharp 0.33 doesn't auto-apply EXIF orientation: .rotate() bakes it
+        // into the thumb, and orientations 5-8 are transposed, so the stored
+        // dimensions must swap to describe the photo as it displays.
+        const transposed = (metadata.orientation || 1) >= 5;
         await image
+          .rotate()
           .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
           .webp({ quality: 80 })
           .toFile(path.join(UPLOADS_DIR, thumbFilename));
@@ -168,8 +181,8 @@ app.post("/api/photos", (req, res) => {
         const info = insert.run(
           file.filename,
           thumbFilename,
-          metadata.width,
-          metadata.height,
+          transposed ? metadata.height : metadata.width,
+          transposed ? metadata.width : metadata.height,
           tags
         );
         created.push(rowToPhoto(db.prepare("SELECT * FROM photos WHERE id = ?").get(info.lastInsertRowid)));
@@ -177,6 +190,7 @@ app.post("/api/photos", (req, res) => {
         console.error(`Failed to process ${file.originalname}:`, e);
         failed.push({ filename: file.originalname, error: e.message });
         fs.rm(file.path, { force: true }, () => {});
+        fs.rm(path.join(UPLOADS_DIR, thumbFilename), { force: true }, () => {});
       }
     }
     res.status(created.length > 0 ? 201 : 500).json({ created, failed });
@@ -226,11 +240,13 @@ app.delete("/api/photos/:id", (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  // Row first, files second: if the row delete fails the gallery keeps a
+  // working entry, whereas files-first would leave a broken tile behind.
+  db.prepare("DELETE FROM photos WHERE id = ?").run(id);
   for (const filename of [row.filename, row.thumb_filename]) {
     const filePath = path.join(UPLOADS_DIR, filename);
     fs.rm(filePath, { force: true }, () => {});
   }
-  db.prepare("DELETE FROM photos WHERE id = ?").run(id);
   res.status(204).end();
 });
 
@@ -269,6 +285,9 @@ function weekLabel(startStr) {
   const endPart = `${end.getUTCDate()} ${MONTHS[end.getUTCMonth()]} ${end.getUTCFullYear()}`;
   return `${startPart}–${endPart}`;
 }
+// Kept in sync by hand with hueColors() in public/shared.js — this copy is
+// authoritative (board chips + JPG export), the client copy only drives the
+// workers-page hue-slider preview.
 function hueColors(hue) {
   return {
     bg: `oklch(30% 0.06 ${hue})`,
@@ -291,24 +310,51 @@ function rowToJob(row) {
   return { id: row.id, name: row.name, notes: row.notes, archived: !!row.archived };
 }
 
-function buildScheduleRow(weekRow) {
+// Prepared once at module load — better-sqlite3 statements are reusable, and
+// these run on every board fetch (which the frontend does after each edit).
+const selectWeekRow = db.prepare("SELECT * FROM week_rows WHERE id = ?");
+const selectRowWithJob = db.prepare(
+  `SELECT wr.id, wr.job_id, wr.sort_order, j.name AS job_name, j.notes
+   FROM week_rows wr JOIN jobs j ON j.id = wr.job_id WHERE wr.id = ?`
+);
+const selectRowAssignments = db.prepare(
+  `SELECT a.id AS assignment_id, a.day, w.id AS worker_id, w.name, w.hue
+   FROM assignments a JOIN workers w ON w.id = a.worker_id
+   WHERE a.week_row_id = ? ORDER BY a.id ASC`
+);
+const selectRowFlags = db.prepare("SELECT day FROM day_flags WHERE week_row_id = ?");
+const selectPanelRows = db.prepare(
+  `SELECT wr.id, wr.job_id, wr.sort_order, j.name AS job_name, j.notes
+   FROM week_rows wr JOIN jobs j ON j.id = wr.job_id
+   WHERE wr.week_start = ? AND wr.panel = ?
+   ORDER BY wr.sort_order ASC, wr.id ASC`
+);
+const selectPanelAssignments = db.prepare(
+  `SELECT a.week_row_id, a.id AS assignment_id, a.day, w.id AS worker_id, w.name, w.hue
+   FROM assignments a
+   JOIN workers w ON w.id = a.worker_id
+   JOIN week_rows wr ON wr.id = a.week_row_id
+   WHERE wr.week_start = ? AND wr.panel = ?
+   ORDER BY a.id ASC`
+);
+const selectPanelFlags = db.prepare(
+  `SELECT df.week_row_id, df.day
+   FROM day_flags df JOIN week_rows wr ON wr.id = df.week_row_id
+   WHERE wr.week_start = ? AND wr.panel = ?`
+);
+
+// assignments/flagRows are optional pre-fetched groups (see buildWeekPanel);
+// single-row callers omit them and this falls back to per-row lookups.
+function buildScheduleRow(weekRow, assignments, flagRows) {
   const cells = {};
   for (const key of DAY_KEYS) cells[key] = [];
-  const assignments = db
-    .prepare(
-      `SELECT a.id AS assignment_id, a.day, w.id AS worker_id, w.name, w.hue
-       FROM assignments a JOIN workers w ON w.id = a.worker_id
-       WHERE a.week_row_id = ? ORDER BY a.id ASC`
-    )
-    .all(weekRow.id);
-  for (const a of assignments) {
+  for (const a of assignments ?? selectRowAssignments.all(weekRow.id)) {
     const { bg, fg } = hueColors(a.hue);
     cells[a.day].push({ assignmentId: a.assignment_id, workerId: a.worker_id, name: a.name, bg, fg });
   }
   const flags = {};
   for (const key of DAY_KEYS) flags[key] = false;
-  const flagRows = db.prepare("SELECT day FROM day_flags WHERE week_row_id = ?").all(weekRow.id);
-  for (const f of flagRows) flags[f.day] = true;
+  for (const f of flagRows ?? selectRowFlags.all(weekRow.id)) flags[f.day] = true;
   return {
     rowId: weekRow.id,
     jobId: weekRow.job_id,
@@ -320,15 +366,22 @@ function buildScheduleRow(weekRow) {
 }
 
 function buildWeekPanel(weekStart, panel) {
-  const weekRows = db
-    .prepare(
-      `SELECT wr.id, wr.job_id, wr.sort_order, j.name AS job_name, j.notes
-       FROM week_rows wr JOIN jobs j ON j.id = wr.job_id
-       WHERE wr.week_start = ? AND wr.panel = ?
-       ORDER BY wr.sort_order ASC, wr.id ASC`
-    )
-    .all(weekStart, panel);
-  return weekRows.map(buildScheduleRow);
+  const weekRows = selectPanelRows.all(weekStart, panel);
+  // One query per panel for assignments and one for flags (instead of two per
+  // row), grouped by row id here. ORDER BY a.id ASC is preserved per group.
+  const assignmentsByRow = new Map();
+  for (const a of selectPanelAssignments.all(weekStart, panel)) {
+    if (!assignmentsByRow.has(a.week_row_id)) assignmentsByRow.set(a.week_row_id, []);
+    assignmentsByRow.get(a.week_row_id).push(a);
+  }
+  const flagsByRow = new Map();
+  for (const f of selectPanelFlags.all(weekStart, panel)) {
+    if (!flagsByRow.has(f.week_row_id)) flagsByRow.set(f.week_row_id, []);
+    flagsByRow.get(f.week_row_id).push(f);
+  }
+  return weekRows.map((wr) =>
+    buildScheduleRow(wr, assignmentsByRow.get(wr.id) || [], flagsByRow.get(wr.id) || [])
+  );
 }
 
 function buildWeek(weekStart) {
@@ -341,7 +394,7 @@ function buildWeek(weekStart) {
 }
 
 function getWeekRowOr404(id, res) {
-  const row = db.prepare("SELECT * FROM week_rows WHERE id = ?").get(id);
+  const row = selectWeekRow.get(id);
   if (!row) {
     res.status(404).json({ error: "Row not found" });
     return null;
@@ -455,12 +508,7 @@ app.post("/api/rows", (req, res) => {
     .prepare("INSERT INTO week_rows (job_id, week_start, panel, sort_order) VALUES (?, ?, ?, ?)")
     .run(resolvedJobId, snappedWeekStart, panel, (maxOrder ?? -1) + 1);
 
-  const weekRow = db
-    .prepare(
-      `SELECT wr.id, wr.job_id, wr.sort_order, j.name AS job_name, j.notes
-       FROM week_rows wr JOIN jobs j ON j.id = wr.job_id WHERE wr.id = ?`
-    )
-    .get(info.lastInsertRowid);
+  const weekRow = selectRowWithJob.get(info.lastInsertRowid);
   res.status(201).json(buildScheduleRow(weekRow));
 });
 
@@ -498,7 +546,12 @@ app.delete("/api/rows/:id", (req, res) => {
   const id = Number(req.params.id);
   const row = getWeekRowOr404(id, res);
   if (!row) return;
+  // day_flags has no FK enforcement (PRAGMA foreign_keys is off), so child
+  // rows must be cleaned up here or they orphan forever. Scoped to this row's
+  // id only — the flags describe a row that ceases to exist in the same
+  // transaction, so nothing reachable is lost.
   const del = db.transaction(() => {
+    db.prepare("DELETE FROM day_flags WHERE week_row_id = ?").run(id);
     db.prepare("DELETE FROM assignments WHERE week_row_id = ?").run(id);
     db.prepare("DELETE FROM week_rows WHERE id = ?").run(id);
   });
@@ -533,12 +586,7 @@ app.post("/api/rows/:id/duplicate", (req, res) => {
     return info.lastInsertRowid;
   })();
 
-  const weekRow = db
-    .prepare(
-      `SELECT wr.id, wr.job_id, wr.sort_order, j.name AS job_name, j.notes
-       FROM week_rows wr JOIN jobs j ON j.id = wr.job_id WHERE wr.id = ?`
-    )
-    .get(newRowId);
+  const weekRow = selectRowWithJob.get(newRowId);
   res.status(201).json(buildScheduleRow(weekRow));
 });
 
@@ -551,15 +599,28 @@ app.post("/api/rows/:id/assignments", (req, res) => {
     res.status(400).json({ error: "day must be one of " + DAY_KEYS.join(", ") });
     return;
   }
+  if (!Number.isInteger(workerId)) {
+    res.status(400).json({ error: "workerId must be an integer" });
+    return;
+  }
   const worker = db.prepare("SELECT * FROM workers WHERE id = ?").get(workerId);
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;
   }
+  const { bg, fg } = hueColors(worker.hue);
+  // The same worker twice in one cell is never meaningful on the board, and
+  // assignments has no UNIQUE constraint — treat a repeat pick as idempotent.
+  const existing = db
+    .prepare("SELECT id FROM assignments WHERE week_row_id = ? AND day = ? AND worker_id = ?")
+    .get(id, day, worker.id);
+  if (existing) {
+    res.json({ assignmentId: existing.id, workerId: worker.id, name: worker.name, bg, fg, day });
+    return;
+  }
   const info = db
     .prepare("INSERT INTO assignments (week_row_id, day, worker_id) VALUES (?, ?, ?)")
     .run(id, day, worker.id);
-  const { bg, fg } = hueColors(worker.hue);
   res.status(201).json({ assignmentId: info.lastInsertRowid, workerId: worker.id, name: worker.name, bg, fg, day });
 });
 

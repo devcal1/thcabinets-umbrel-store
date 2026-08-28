@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.6.1"
+version: "1.7.0"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,10 +20,15 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Internal cleanup, no visible changes: removed duplicated JS/CSS between
-  pages, fixed the JPG schedule export missing the "locked in" flag markers,
-  and vendored the icon font and search library locally instead of loading
-  them from a CDN (so the app keeps working if the internet's down).
+  A round of bug fixes. Schedule board: the "today" highlight now rolls over
+  at midnight instead of sticking on yesterday, printing actually comes out
+  readable (job names, worker chips, and locked-in markers all print now),
+  open notes don't get wiped by edits elsewhere on the board, picking the
+  same worker twice for one day no longer stacks a duplicate chip, and
+  deleting a row tidies up its locked-in flags behind the scenes. Photos:
+  portrait phone photos no longer get sideways thumbnails, uploads of more
+  than 100 photos at once work, and AI tag suggestions are quicker and no
+  longer fail on big camera files.
 dependencies: []
 path: ""
 defaultUsername: ""

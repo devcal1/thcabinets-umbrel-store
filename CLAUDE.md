@@ -70,18 +70,20 @@ history were removed 2026-08-27. It is not part of this project.
 mock-server rigs. Spot-check builds; go deep only for changes touching stored
 schedule data or anything else with production-data risk.
 
-## Current state (as of 2026-08-27)
+## Current state (as of 2026-08-28)
 
-- Manifest **1.6.1**, HEAD `1269d7a`.
+- Manifest **1.7.0** (bug-fix round across schedule board, photos, CI, and
+  Dockerfile — not yet pushed/verified by CI at time of writing).
 - Repo was deleted and recreated 2026-08-27 for a fresh start, with
   `joinery-quoter/` stripped from history via `git filter-repo`. **Commit hashes
   from before that date resolve to nothing** — don't cite them. Older GHCR tags
   (`sha-dd06108…` etc.) are orphaned but harmless.
-- **CI is red.** The only run on the new repo failed at step 8 "Build and push
-  multi-arch image" — but the publish *succeeded* (`:latest` and
-  `sha-1269d7a…` share digest `sha256:0c6e9fdc…`, multi-arch, public, pullable).
-  Suspected GHA cache-export failure after the push; unconfirmed, reading the log
-  needs repo admin. Likely one-line fix: `cache-to: type=gha,mode=max,ignore-error=true`.
+- **CI red-run fix applied, unverified.** The only run on the old workflow failed
+  at step 8 "Build and push multi-arch image" even though the publish succeeded
+  (suspected GHA cache-export failure). Both `cache-to:` lines now carry
+  `ignore-error=true`; if a run still goes red after this, the cache theory was
+  wrong — read the log (needs repo admin) instead of stacking more guesses. CI
+  also now fails fast if `app/` changes without a `version:` bump.
 
 ## Known issues / deferred
 
@@ -90,12 +92,30 @@ schedule data or anything else with production-data risk.
   is the only access control on admin — decide which is true.
 - [tokens.css:6](thcabinets-splash/app/public/tokens.css:6) still `@import`s Inter
   from Google Fonts — render-blocking on a LAN with no internet, despite Phosphor
-  and fuse.js having been vendored for exactly that reason.
-- `DELETE /api/rows/:id` doesn't clean up `day_flags`; orphans accumulate.
-  Harmless (`AUTOINCREMENT` prevents id reuse) but a real leak.
-- Splitting `server.js` into route modules — scoped, not done. Flagged as the one
-  refactor with real operational risk (a `Dockerfile COPY` mistake takes the live
-  board down), so it should be its own isolated, verified change.
+  and fuse.js having been vendored for exactly that reason. Vendoring Inter's
+  woff2 files (like Phosphor) is the fix; needs the font files downloaded.
+- Historical `day_flags` orphans from before 1.7.0 still sit in the production
+  DB (the row-delete now cleans up after itself). The one-time sweep
+  `DELETE FROM day_flags WHERE week_row_id NOT IN (SELECT id FROM week_rows)` is
+  safe by the same unreachability reasoning but is a bulk delete on live data —
+  owner sign-off required, run it only deliberately.
+- No `package-lock.json` — every image build resolves deps fresh, so the tested
+  amd64 image and the published arm64 image can silently differ. Generate one
+  with `npm install --package-lock-only` (needs npm; not available on the
+  Windows dev machine), verify it pins `@img/sharp-linuxmusl-x64` **and**
+  `-arm64`, switch the Dockerfile to `npm ci --omit=dev`.
+- `GET /api/schedule` with no `?week=` computes "today" in UTC, so it returns
+  last week as `weeks[0]` on Monday mornings AEST. Unreachable via the shipped
+  frontend (it always sends `?week=`); fixing the default needs the owner to
+  confirm the business timezone first.
+- Bulk import groups files sitting loose in the picked folder's root under the
+  root folder's own name, while the UI copy says each *sub*folder becomes a tag.
+  Visible/editable in the review table, so left alone — fixing it naively breaks
+  the pick-a-single-job-folder shortcut. Decide the intended behavior first.
+- Splitting `server.js` into route modules — scoped, not done. The old
+  extra risk (an enumerated `Dockerfile COPY` silently dropping a new file) is
+  gone since the Dockerfile now copies the whole build context, but it should
+  still be its own isolated, verified change.
 - No auth on `/admin.html` or `/workers.html` — intentional for now. A login
   design (bcrypt + `express-session`) was scoped but not built.
 - AI tag suggestions need a free Gemini key at `data/config/gemini-api-key` on the
