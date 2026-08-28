@@ -72,8 +72,12 @@ schedule data or anything else with production-data risk.
 
 ## Current state (as of 2026-08-28)
 
-- Manifest **1.7.0** (bug-fix round across schedule board, photos, CI, and
-  Dockerfile — not yet pushed/verified by CI at time of writing).
+- Manifest **1.7.0, published.** CI went green on run #2 attempt 3
+  (2026-08-28): `sha-992a169`/`:latest` are live on GHCR, multi-arch. Attempt 2
+  of the same run stalled ~2h on the multi-arch step and had to be cancelled —
+  the stall is real and recurring; if it keeps biting, the durable fix is
+  building each arch natively (`ubuntu-24.04-arm` runners are free for public
+  repos) instead of QEMU, as its own isolated change.
 - Repo was deleted and recreated 2026-08-27 for a fresh start, with
   `joinery-quoter/` stripped from history via `git filter-repo`. **Commit hashes
   from before that date resolve to nothing** — don't cite them. Older GHCR tags
@@ -92,9 +96,9 @@ schedule data or anything else with production-data risk.
   Manage Actions access → add `devcal1/thcabinets-umbrel-store` with **Write**,
   then re-run the failed workflow. Don't delete/recreate the package instead —
   the Umbrel pulls `:latest` from it. The `ignore-error=true` on `cache-to:` is
-  kept (harmless, and cache-service flakes remain possible). Build, version
-  guard, and the extended smoke test all pass — 1.7.0 is ready to publish the
-  moment access is granted.
+  kept (harmless, and cache-service flakes remain possible). **Resolved
+  2026-08-28**: owner granted the repo Write on the package and the re-run
+  published 1.7.0.
 
 ## Known issues / deferred
 
