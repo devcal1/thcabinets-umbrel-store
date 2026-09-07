@@ -7,6 +7,23 @@ services:
       # Format: <app-id>_<docker-service-name>_1
       APP_HOST: thcabinets-splash_web_1
       APP_PORT: 3000
+      # Umbrel-auth carve-out: the schedule board works WITHOUT the Umbrel
+      # login — the workshop TV and any LAN device can view and edit it, the
+      # same trust model as the whiteboard it replaced. index/search/admin/
+      # workers pages and every photo API stay behind the Umbrel login.
+      # Known accepted leak: POST /api/workers shares its path with the GET
+      # the board needs (rules match paths, not methods) — junk-worker
+      # creation only; worker edits stay gated via the blacklist below.
+      #
+      # MAINTENANCE — same trap class as the exportJpg mirror rule in
+      # schedule.js: any new file or API path schedule.html starts using MUST
+      # be appended here, or the TV silently breaks on the next Update.
+      PROXY_AUTH_WHITELIST: "/schedule.html,/schedule.css,/schedule.js,/shared.js,/tokens.css,/vendor/*,/api/schedule,/api/workers,/api/jobs,/api/jobs/*,/api/rows,/api/rows/*,/api/assignments/*"
+      # Blacklist beats whitelist on every umbrelOS version. Bare whitelist
+      # paths are exact matches on 1.7.x and 2.0, so this is defensive: it
+      # keeps PATCH /api/workers/:id gated even on older prefix-matching
+      # proxy builds.
+      PROXY_AUTH_BLACKLIST: "/api/workers/*"
 
   web:
     image: ghcr.io/devcal1/thcabinets-web:latest

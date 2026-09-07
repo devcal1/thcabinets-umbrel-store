@@ -70,8 +70,21 @@ history were removed 2026-08-27. It is not part of this project.
 mock-server rigs. Spot-check builds; go deep only for changes touching stored
 schedule data or anything else with production-data risk.
 
-## Current state (as of 2026-08-28)
+## Current state (as of 2026-09-07)
 
+- Manifest **1.7.1, pushed 2026-09-07** (compose + manifest only, no app code):
+  `PROXY_AUTH_WHITELIST`/`PROXY_AUTH_BLACKLIST` on the `app_proxy` service open
+  the schedule board — view **and** edit, the whiteboard trust model — to the
+  LAN with no Umbrel login; index/search/admin/workers and all photo APIs stay
+  gated. Verified against Umbrel proxy source (0.5.x–2.0; honored via normal
+  Update). Accepted leak: `POST /api/workers` is ungated (shares its exact path
+  with the GET the board needs; rules match paths, not methods). **Maintenance
+  trap:** any new asset or API path the schedule page starts using must be
+  appended to the whitelist in docker-compose.yml or the TV silently breaks —
+  same class as the exportJpg mirror rule. The TV must bookmark
+  `/schedule.html` directly; the default landing page stays behind the login.
+  Unauthenticated requests to gated routes get a 302 to the auth page (port
+  2000), surfacing in the UI as a "Failed to fetch"-style toast, not a 401.
 - Manifest **1.7.0, published.** CI went green on run #2 attempt 3
   (2026-08-28): `sha-992a169`/`:latest` are live on GHCR, multi-arch. Attempt 2
   of the same run stalled ~2h on the multi-arch step and had to be cancelled —
