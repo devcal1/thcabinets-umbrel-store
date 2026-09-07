@@ -72,7 +72,13 @@ schedule data or anything else with production-data risk.
 
 ## Current state (as of 2026-09-07)
 
-- Manifest **1.7.2, pushed 2026-09-07** (frontend-only: schedule.js/css): per
+- **Uncommitted WIP in the working tree** (predates the 1.7.x releases and was
+  deliberately kept out of them): a `GET /api/tags` endpoint in `server.js`
+  plus admin filter-bar work in `admin.html`/`admin.js`/`admin.css` and
+  `search.css`. Unreviewed — never let it ride along in an unrelated commit;
+  it ships as its own reviewed release or not at all.
+- Manifest **1.7.2, published & live 2026-09-07** (frontend-only:
+  schedule.js/css; CI run #4 green, owner ran Update on the device): per
   week the manufacturing/installing panels align — a job in both sits on the
   same line (`alignPanels()` LCS on jobIds, blank `.row-blank` padding,
   `syncRowHeights()` measured pairing) — and the notes icon shows orange
@@ -86,7 +92,8 @@ schedule data or anything else with production-data risk.
   Known accepted quirk: with alignment on, a move up/down can visually shift
   the partner panel's rows or re-anchor lines rather than moving one line —
   data-correct, inherent to alignment.
-- Manifest **1.7.1, pushed 2026-09-07** (compose + manifest only, no app code):
+- Manifest **1.7.1, published & live 2026-09-07** (compose + manifest only, no
+  app code; superseded on-device by the 1.7.2 update, which carries it):
   `PROXY_AUTH_WHITELIST`/`PROXY_AUTH_BLACKLIST` on the `app_proxy` service open
   the schedule board — view **and** edit, the whiteboard trust model — to the
   LAN with no Umbrel login; index/search/admin/workers and all photo APIs stay
@@ -109,29 +116,22 @@ schedule data or anything else with production-data risk.
   `joinery-quoter/` stripped from history via `git filter-repo`. **Commit hashes
   from before that date resolve to nothing** — don't cite them. Older GHCR tags
   (`sha-dd06108…` etc.) are orphaned but harmless.
-- **CI red root cause found: GHCR write access, not caching.** Both runs on the
-  recreated repo failed at "Build and push multi-arch image" with
-  `denied: permission_denied: write_package` (visible in the check-run
-  annotations). The `thcabinets-web` package survived the 2026-08-27 repo
-  deletion, but its Actions-access grant pointed at the *old* repo, so the new
-  repo's `GITHUB_TOKEN` can't push. **No run on the recreated repo has ever
-  published** — `sha-1269d7a`/`sha-992a169` don't exist on GHCR; `:latest` is
-  still the pre-recreation image (same app content by luck: 1269d7a was
-  workflow-only). The earlier "publish succeeded, suspected cache-export
-  failure" note was a misdiagnosis. Fix (owner, in browser): package settings →
-  https://github.com/users/devcal1/packages/container/thcabinets-web/settings →
-  Manage Actions access → add `devcal1/thcabinets-umbrel-store` with **Write**,
-  then re-run the failed workflow. Don't delete/recreate the package instead —
-  the Umbrel pulls `:latest` from it. The `ignore-error=true` on `cache-to:` is
-  kept (harmless, and cache-service flakes remain possible). **Resolved
-  2026-08-28**: owner granted the repo Write on the package and the re-run
-  published 1.7.0.
+- **GHCR write-access incident (resolved 2026-08-28), kept for its lessons:**
+  after the repo recreation, the `thcabinets-web` package's Actions-access
+  grant still pointed at the old repo, so every push failed with
+  `denied: permission_denied: write_package` — first misdiagnosed as a
+  cache-export flake. Owner re-granted Write and 1.7.0 published. Standing
+  rules: **never delete/recreate the GHCR package** (the Umbrel pulls
+  `:latest` from it), read the check-run annotations before theorising about
+  a red run, and verify publishes against GHCR digests, not step ticks.
 
 ## Known issues / deferred
 
 - `/admin.html` **is** linked from [index.html:121](thcabinets-splash/app/public/index.html:121),
-  though the README and admin.html itself both claim it's unlinked. Unlinked-ness
-  is the only access control on admin — decide which is true.
+  though the README and admin.html itself both claim it's unlinked. Since 1.7.1
+  the Umbrel login properly gates admin at the proxy (the auth whitelist exempts
+  only schedule routes), so unlinked-ness no longer carries any security weight —
+  what remains is fixing the stale README/admin.html copy.
 - [tokens.css:6](thcabinets-splash/app/public/tokens.css:6) still `@import`s Inter
   from Google Fonts — render-blocking on a LAN with no internet, despite Phosphor
   and fuse.js having been vendored for exactly that reason. Vendoring Inter's
@@ -158,7 +158,9 @@ schedule data or anything else with production-data risk.
   extra risk (an enumerated `Dockerfile COPY` silently dropping a new file) is
   gone since the Dockerfile now copies the whole build context, but it should
   still be its own isolated, verified change.
-- No auth on `/admin.html` or `/workers.html` — intentional for now. A login
-  design (bcrypt + `express-session`) was scoped but not built.
+- No app-level auth on `/admin.html` or `/workers.html` — intentional for now,
+  and since 1.7.1 the Umbrel login gates them at the proxy anyway (only the
+  schedule board is deliberately ungated and LAN-editable). A login design
+  (bcrypt + `express-session`) was scoped but not built.
 - AI tag suggestions need a free Gemini key at `data/config/gemini-api-key` on the
   Umbrel; degrades gracefully without one.
