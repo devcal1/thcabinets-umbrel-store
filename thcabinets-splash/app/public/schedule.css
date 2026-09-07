@@ -173,8 +173,18 @@ main {
 }
 .sched-row > div { padding: var(--space-2) 5px; min-height: 36px; }
 .sched-row > div:first-child { padding-left: 0; }
-.sched-row:hover:not(.sched-head) { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.sched-row:hover:not(.sched-head):not(.row-blank) { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
 .today-col { background: color-mix(in srgb, var(--color-accent) 7%, transparent); }
+
+/* Alignment padding: a blank line where the other panel has a job. Kept as a
+   bordered row so the grid lines run level across both panels. Below 900px the
+   panels stack, so the padding means nothing and is hidden. */
+@media (max-width: 900px) { .sched-row.row-blank { display: none; } }
+
+/* Cells must fill the row track: syncRowHeights stretches rows past their
+   content height, and with align-items:start the today/flagged backgrounds
+   would stop short and leave notches. Children still flow from the top. */
+.sched-row:not(.sched-head) > .sched-cell { align-self: stretch; }
 
 .job-cell { display: flex; flex-direction: column; gap: 2px; padding-top: var(--space-3) !important; }
 .job-name {
@@ -192,6 +202,10 @@ main {
 .job-name:focus-visible { outline: 1px solid var(--color-accent); border-radius: 4px; }
 .job-actions { display: flex; gap: 2px; }
 .job-actions .btn-icon { width: 26px; height: 26px; font-size: 14px; }
+/* A job with saved notes shows its note icon in bright orange (mirrored as an
+   orange dot in the JPG export — see exportJpg). */
+.job-actions .btn-icon.has-notes,
+.job-actions .btn-icon.has-notes:hover { color: #ff8c1a; }
 
 .job-notes {
   grid-column: 1 / -1;
@@ -304,4 +318,21 @@ main {
   /* Borders always print, so the lock-in marker survives even when the
      browser's "background graphics" option is off. */
   .sched-cell.flagged { border-left: 3px solid #a97d17; }
+  /* .job-actions is hidden in print, so mirror the orange notes icon with a
+     printable marker (darker orange for white paper). */
+  .has-notes-row .job-cell::after {
+    content: "● note";
+    color: #b45a00;
+    font-size: 11px;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+@media print and (max-width: 900px) {
+  /* Portrait paper stacks the panels (page box < 900px), where row pairing
+     means nothing — without this, the inline heights syncRowHeights measured
+     at screen width would print as dead space in every mismatched pair.
+     !important is load-bearing: it must beat those inline styles. */
+  .sched-row { min-height: 0 !important; margin-bottom: 0 !important; }
 }

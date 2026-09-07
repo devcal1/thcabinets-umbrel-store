@@ -72,6 +72,20 @@ schedule data or anything else with production-data risk.
 
 ## Current state (as of 2026-09-07)
 
+- Manifest **1.7.2, pushed 2026-09-07** (frontend-only: schedule.js/css): per
+  week the manufacturing/installing panels align — a job in both sits on the
+  same line (`alignPanels()` LCS on jobIds, blank `.row-blank` padding,
+  `syncRowHeights()` measured pairing) — and the notes icon shows orange
+  (`.has-notes`) when a job has notes. **New mirror invariant, same class as
+  rule 8:** `alignPanels()` is shared by `renderWeeks()` and `exportJpg()` —
+  any change to board line structure must keep both callers on it. The orange
+  icon mirrors as an orange dot in the JPG and a print-only "● note" marker;
+  a `@media print and (max-width: 900px)` guard stops the inline synced
+  heights bleeding into portrait prints (page box < 900px stacks the panels).
+  No new assets or API paths, so the 1.7.1 auth whitelist needed no change.
+  Known accepted quirk: with alignment on, a move up/down can visually shift
+  the partner panel's rows or re-anchor lines rather than moving one line —
+  data-correct, inherent to alignment.
 - Manifest **1.7.1, pushed 2026-09-07** (compose + manifest only, no app code):
   `PROXY_AUTH_WHITELIST`/`PROXY_AUTH_BLACKLIST` on the `app_proxy` service open
   the schedule board — view **and** edit, the whiteboard trust model — to the

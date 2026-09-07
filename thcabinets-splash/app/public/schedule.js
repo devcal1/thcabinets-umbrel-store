@@ -177,7 +177,12 @@
 
     const actions = document.createElement("div");
     actions.className = "job-actions";
-    actions.appendChild(iconBtn("ph-note-pencil", "Notes", () => toggleNotes(row.rowId)));
+    const notesBtn = iconBtn("ph-note-pencil", "Notes", () => toggleNotes(row.rowId));
+    if (row.notes && row.notes.trim()) {
+      notesBtn.classList.add("has-notes");
+      rowDiv.classList.add("has-notes-row"); // drives the print-only marker
+    }
+    actions.appendChild(notesBtn);
     actions.appendChild(iconBtn("ph-arrow-fat-lines-right", "Copy to next week", guarded(async () => {
       await api(`/api/rows/${row.rowId}/duplicate`, { method: "POST", body: JSON.stringify({}) });
       toast("Copied to next week");
@@ -259,8 +264,18 @@
     saveBtn.addEventListener("click", guarded(async () => {
       await api(`/api/jobs/${row.jobId}`, { method: "PATCH", body: JSON.stringify({ notes: textarea.value }) });
       toast("Notes saved");
+      // Notes are per-job, so the same job's icon in the other panel needs
+      // updating too; renderWeeks' snapshot keeps this panel open through it.
+      // Swallowed on failure — the save itself already stuck, and a toast here
+      // would contradict "Notes saved"; the next action or tick re-syncs.
+      try {
+        await refresh();
+      } catch {}
     }));
     notes.appendChild(saveBtn);
+    // Dragging the textarea's resize handle changes the editor's height with
+    // no event — keep the other panel's compensation margin in step.
+    if (window.ResizeObserver) new ResizeObserver(queueSync).observe(notes);
     wrap.appendChild(notes);
 
     return wrap;
@@ -279,10 +294,119 @@
   function toggleNotes(rowId) {
     const el = document.getElementById(`notes-${rowId}`);
     if (el) el.hidden = !el.hidden;
+    syncRowHeights();
+  }
+
+  // --- panel alignment ---
+  // A job appearing in both panels of a week must sit on the same line, with
+  // blank rows (null) padding the other panel. Anchors are the LCS of the two
+  // panels' jobId sequences, so both panels' manual row order is respected —
+  // if the orders conflict, the largest consistent set of jobs still aligns.
+  // Unmatched rows between anchors pair up index-wise to keep the board short.
+  function alignPanels(week) {
+    const a = week.manufacturing;
+    const b = week.installing;
+    const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = a.length - 1; i >= 0; i--) {
+      for (let j = b.length - 1; j >= 0; j--) {
+        dp[i][j] = a[i].jobId === b[j].jobId
+          ? dp[i + 1][j + 1] + 1
+          : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    const outA = [];
+    const outB = [];
+    let segA = [];
+    let segB = [];
+    function flushSegments() {
+      for (let k = 0; k < Math.max(segA.length, segB.length); k++) {
+        outA.push(segA[k] || null);
+        outB.push(segB[k] || null);
+      }
+      segA = [];
+      segB = [];
+    }
+    let i = 0;
+    let j = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i].jobId === b[j].jobId) {
+        flushSegments();
+        outA.push(a[i++]);
+        outB.push(b[j++]);
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        segA.push(a[i++]);
+      } else {
+        segB.push(b[j++]);
+      }
+    }
+    while (i < a.length) segA.push(a[i++]);
+    while (j < b.length) segB.push(b[j++]);
+    flushSegments();
+    return { manufacturing: outA, installing: outB };
+  }
+
+  function blankRowEl(todayIndex) {
+    const rowDiv = document.createElement("div");
+    rowDiv.className = "sched-row row-blank";
+    const jobCell = document.createElement("div");
+    jobCell.className = "job-cell";
+    rowDiv.appendChild(jobCell);
+    DAY_KEYS.forEach((day, i) => {
+      const cell = document.createElement("div");
+      cell.className = "sched-cell" + (i === todayIndex ? " today-col" : "");
+      rowDiv.appendChild(cell);
+    });
+    return rowDiv;
+  }
+
+  // The two panels are independent grids, so paired lines only stay level if
+  // we measure and match their heights (chips stack, names wrap). An open
+  // notes editor adds height below its row; the margin compensates on the
+  // other panel so lines further down stay aligned while someone types.
+  function openNotesHeight(rowDiv) {
+    const next = rowDiv.nextElementSibling;
+    return next && next.classList.contains("job-notes") && !next.hidden ? next.offsetHeight : 0;
+  }
+  function syncRowHeights() {
+    const stacked = window.matchMedia("(max-width: 900px)").matches;
+    const pairs = [];
+    for (const section of weeksContainer.querySelectorAll(".week-section")) {
+      const grids = section.querySelectorAll(".panel .sched-grid");
+      if (grids.length < 2) continue;
+      const rowsA = [...grids[0].querySelectorAll(".sched-row:not(.sched-head)")];
+      const rowsB = [...grids[1].querySelectorAll(".sched-row:not(.sched-head)")];
+      for (const r of [...rowsA, ...rowsB]) {
+        r.style.minHeight = "";
+        r.style.marginBottom = "";
+      }
+      // Panels stack below 900px (blank rows are hidden there too) — pairing
+      // by line no longer means anything visually, so leave heights natural.
+      if (stacked) continue;
+      for (let k = 0; k < Math.min(rowsA.length, rowsB.length); k++) pairs.push([rowsA[k], rowsB[k]]);
+    }
+    // All reads before all writes: one forced layout per call, not per pair —
+    // this runs after every mutation on a TV-grade device.
+    const measured = pairs.map(([a, b]) => ({
+      a,
+      b,
+      h: Math.max(a.offsetHeight, b.offsetHeight),
+      na: openNotesHeight(a),
+      nb: openNotesHeight(b),
+    }));
+    for (const m of measured) {
+      m.a.style.minHeight = `${m.h}px`;
+      m.b.style.minHeight = `${m.h}px`;
+      if (m.na !== m.nb) (m.na > m.nb ? m.b : m.a).style.marginBottom = `${Math.abs(m.na - m.nb)}px`;
+    }
+  }
+  let syncTimer;
+  function queueSync() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncRowHeights, 120);
   }
 
   // --- panel rendering ---
-  function panelEl(week, panelDef) {
+  function panelEl(week, panelDef, rows) {
     const panel = document.createElement("div");
     panel.className = "panel";
 
@@ -310,8 +434,9 @@
     });
     grid.appendChild(head);
 
-    const rows = week[panelDef.key];
-    for (const row of rows) grid.appendChild(rowEl(row, panelDef.key, todayIndex));
+    for (const row of rows) {
+      grid.appendChild(row ? rowEl(row, panelDef.key, todayIndex) : blankRowEl(todayIndex));
+    }
 
     panel.appendChild(grid);
 
@@ -388,7 +513,8 @@
 
       const cols = document.createElement("div");
       cols.className = "week-cols";
-      for (const panelDef of PANELS) cols.appendChild(panelEl(week, panelDef));
+      const aligned = alignPanels(week);
+      for (const panelDef of PANELS) cols.appendChild(panelEl(week, panelDef, aligned[panelDef.key]));
       section.appendChild(cols);
 
       weeksContainer.appendChild(section);
@@ -401,6 +527,8 @@
       const textarea = el.querySelector("textarea");
       if (textarea.value !== draft) textarea.value = draft;
     }
+
+    syncRowHeights();
   }
 
   async function refresh() {
@@ -457,12 +585,20 @@
       return Math.max(34, rowPad * 2 + maxChips * chipH + (maxChips - 1) * chipGap);
     }
 
+    // Mirrors the on-screen alignment: one shared height per line, both panels.
+    const alignedWeeks = state.weeks.map((week) => alignPanels(week));
+    const weekLines = alignedWeeks.map((aligned) =>
+      aligned.manufacturing.map((r, i) => {
+        const b = aligned.installing[i];
+        return Math.max(r ? rowHeight(r) : 34, b ? rowHeight(b) : 34);
+      })
+    );
+
     let totalH = margin;
     const weekHeights = [];
-    for (const week of state.weeks) {
-      const mfgH = headerH + week.manufacturing.reduce((a, r) => a + rowHeight(r), 0);
-      const instH = headerH + week.installing.reduce((a, r) => a + rowHeight(r), 0);
-      const h = weekTitleH + panelTitleH + Math.max(mfgH, instH) + gap;
+    for (const lines of weekLines) {
+      const bodyH = headerH + lines.reduce((a, h) => a + h, 0);
+      const h = weekTitleH + panelTitleH + bodyH + gap;
       weekHeights.push(h);
       totalH += h;
     }
@@ -508,34 +644,44 @@
         ctx.stroke();
         py += headerH;
 
-        for (const row of week[key]) {
-          const h = rowHeight(row);
-          ctx.fillStyle = "#e9e9ed";
-          ctx.font = "500 12px Inter, system-ui, sans-serif";
-          ctx.fillText(row.jobName, x, py + h / 2, jobW - 10);
-
-          DAY_KEYS.forEach((day, i) => {
-            const cellX = x + jobW + i * dayW;
-            if (key === "installing" && row.flags && row.flags[day]) {
-              ctx.fillStyle = "rgba(232, 179, 57, 0.12)";
-              ctx.fillRect(cellX, py, dayW, h);
-              ctx.fillStyle = "#e8b339";
-              ctx.fillRect(cellX, py, 3, h);
-            }
-            let cy = py + rowPad;
-            for (const chip of row.cells[day]) {
-              const cx = x + jobW + i * dayW + 4;
-              const text = chip.name;
-              ctx.font = "500 11px Inter, system-ui, sans-serif";
-              const w = Math.min(dayW - 10, ctx.measureText(text).width + 14);
-              ctx.fillStyle = chip.bg;
-              roundRect(ctx, cx, cy, w, chipH - 4, 5);
+        alignedWeeks[wi][key].forEach((row, li) => {
+          const h = weekLines[wi][li];
+          if (row) {
+            const hasNotes = !!(row.notes && row.notes.trim());
+            ctx.fillStyle = "#e9e9ed";
+            ctx.font = "500 12px Inter, system-ui, sans-serif";
+            ctx.fillText(row.jobName, x, py + h / 2, hasNotes ? jobW - 24 : jobW - 10);
+            if (hasNotes) {
+              // Mirrors the board's orange notes icon.
+              ctx.fillStyle = "#ff8c1a";
+              ctx.beginPath();
+              ctx.arc(x + jobW - 12, py + h / 2, 3.5, 0, Math.PI * 2);
               ctx.fill();
-              ctx.fillStyle = chip.fg;
-              ctx.fillText(text, cx + 7, cy + (chipH - 4) / 2, w - 12);
-              cy += chipH;
             }
-          });
+
+            DAY_KEYS.forEach((day, i) => {
+              const cellX = x + jobW + i * dayW;
+              if (key === "installing" && row.flags && row.flags[day]) {
+                ctx.fillStyle = "rgba(232, 179, 57, 0.12)";
+                ctx.fillRect(cellX, py, dayW, h);
+                ctx.fillStyle = "#e8b339";
+                ctx.fillRect(cellX, py, 3, h);
+              }
+              let cy = py + rowPad;
+              for (const chip of row.cells[day]) {
+                const cx = x + jobW + i * dayW + 4;
+                const text = chip.name;
+                ctx.font = "500 11px Inter, system-ui, sans-serif";
+                const w = Math.min(dayW - 10, ctx.measureText(text).width + 14);
+                ctx.fillStyle = chip.bg;
+                roundRect(ctx, cx, cy, w, chipH - 4, 5);
+                ctx.fill();
+                ctx.fillStyle = chip.fg;
+                ctx.fillText(text, cx + 7, cy + (chipH - 4) / 2, w - 12);
+                cy += chipH;
+              }
+            });
+          }
 
           ctx.strokeStyle = "#232532";
           ctx.beginPath();
@@ -543,7 +689,7 @@
           ctx.lineTo(x + panelW, py + h);
           ctx.stroke();
           py += h;
-        }
+        });
       });
 
       y += weekHeights[wi] - weekTitleH;
@@ -576,6 +722,11 @@
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+
+  // Row-height pairing depends on wrapping, so re-measure when the viewport
+  // changes — and once the web font lands, since it shifts text metrics.
+  window.addEventListener("resize", queueSync);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncRowHeights);
 
   // The board lives on an always-on workshop TV: once the local date rolls
   // over, re-render so the today highlight moves — and if the viewer was on

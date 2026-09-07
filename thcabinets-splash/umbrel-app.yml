@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.7.1"
+version: "1.7.2"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,11 +20,12 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  The schedule board no longer asks for the Umbrel login. Point the workshop
-  TV (or any device on the shop network) straight at /schedule.html and it
-  loads ready to view and edit — no sign-in, just like walking up to the old
-  whiteboard. Everything else is unchanged: the landing page, photo search,
-  photo admin, and worker management still sit behind the Umbrel login.
+  Schedule board improvements. Within each week, a job that appears on both
+  the manufacturing and installing sides now sits on the same line, with
+  blank space filling the gaps — so you can read straight across the board.
+  Jobs with notes now show their note icon in bright orange, so it's obvious
+  at a glance which jobs have extra detail behind them. Both changes carry
+  through to the JPG export.
 dependencies: []
 path: ""
 defaultUsername: ""
