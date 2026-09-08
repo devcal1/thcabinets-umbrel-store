@@ -77,7 +77,9 @@ schedule data or anything else with production-data risk.
   plus admin filter-bar work in `admin.html`/`admin.js`/`admin.css` and
   `search.css`. Unreviewed — never let it ride along in an unrelated commit;
   it ships as its own reviewed release or not at all.
-- Manifest **1.7.3, pushed 2026-09-08** (frontend-only: schedule.js/css):
+- Manifest **1.7.3, published 2026-09-08** (frontend-only: schedule.js/css;
+  CI run #5 green, multi-arch on GHCR; owner Update on the device still
+  pending at hand-off):
   dates now render Australian — week heading `7/9/26 – 11/9/26` (client
   `fmtAU`, d/m/yy no zero-pad, built from `week.start`; the server's
   `week.label` is now deliberately unused), day headers `MON 7/9`. Weeks are
