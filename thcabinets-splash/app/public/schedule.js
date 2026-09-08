@@ -46,6 +46,20 @@
     d.setDate(d.getDate() + diff);
     return formatDate(d);
   }
+  // Australian date display, d/m and d/m/yy (e.g. 4/9/26), no zero padding.
+  function fmtAUShort(s) {
+    const d = parseDate(s);
+    return `${d.getDate()}/${d.getMonth() + 1}`;
+  }
+  function fmtAU(s) {
+    const d = parseDate(s);
+    return `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
+  }
+  // Built client-side (Mon–Fri range in AU format); the server's `label`
+  // field is deliberately unused so date display stays a frontend concern.
+  function weekRangeLabel(week) {
+    return `${fmtAU(week.start)} – ${fmtAU(addDays(week.start, 4))}`;
+  }
 
   // api(), toast(), guarded() now live in shared.js, loaded before this file.
 
@@ -368,6 +382,10 @@
     return next && next.classList.contains("job-notes") && !next.hidden ? next.offsetHeight : 0;
   }
   function syncRowHeights() {
+    // The sticky week banner sits below the nav; nav height varies with
+    // flex-wrap, so measure it into the CSS var the banner's `top` uses.
+    // This runs on render/resize/fonts-ready — the same times it can change.
+    document.documentElement.style.setProperty("--nav-h", `${document.querySelector(".nav").offsetHeight}px`);
     const stacked = window.matchMedia("(max-width: 900px)").matches;
     const pairs = [];
     for (const section of weeksContainer.querySelectorAll(".week-section")) {
@@ -429,7 +447,7 @@
     DAY_KEYS.forEach((day, i) => {
       const d = document.createElement("div");
       d.className = i === todayIndex ? "today-col" : "";
-      d.textContent = DAY_LABELS[day];
+      d.textContent = `${DAY_LABELS[day]} ${fmtAUShort(addDays(week.start, i))}`;
       head.appendChild(d);
     });
     grid.appendChild(head);
@@ -507,7 +525,7 @@
       const head = document.createElement("div");
       head.className = "week-head";
       const h2 = document.createElement("h2");
-      h2.textContent = week.label;
+      h2.textContent = weekRangeLabel(week);
       head.appendChild(h2);
       section.appendChild(head);
 
@@ -619,7 +637,16 @@
     state.weeks.forEach((week, wi) => {
       ctx.fillStyle = "#e9e9ed";
       ctx.font = "700 16px Inter, system-ui, sans-serif";
-      ctx.fillText(week.label, margin, y + 14);
+      ctx.fillText(weekRangeLabel(week), margin, y + 14);
+      // Mirrors the board's accent week banner — a hard rule marking where
+      // each week starts.
+      ctx.strokeStyle = "#9184d9";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(margin, y + 26);
+      ctx.lineTo(margin + panelW * 2 + gap, y + 26);
+      ctx.stroke();
+      ctx.lineWidth = 1;
       y += weekTitleH;
 
       [
@@ -636,7 +663,7 @@
         ctx.fillStyle = "#9397ab";
         ctx.font = "600 10px Inter, system-ui, sans-serif";
         DAY_KEYS.forEach((day, i) => {
-          ctx.fillText(DAY_LABELS[day].toUpperCase(), x + jobW + i * dayW + 6, py + headerH / 2);
+          ctx.fillText(`${DAY_LABELS[day].toUpperCase()} ${fmtAUShort(addDays(week.start, i))}`, x + jobW + i * dayW + 6, py + headerH / 2);
         });
         ctx.beginPath();
         ctx.moveTo(x, py + headerH);

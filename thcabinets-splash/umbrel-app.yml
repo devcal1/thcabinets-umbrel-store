@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.7.2"
+version: "1.7.3"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,12 +20,11 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Schedule board improvements. Within each week, a job that appears on both
-  the manufacturing and installing sides now sits on the same line, with
-  blank space filling the gaps — so you can read straight across the board.
-  Jobs with notes now show their note icon in bright orange, so it's obvious
-  at a glance which jobs have extra detail behind them. Both changes carry
-  through to the JPG export.
+  Schedule board now shows dates the Australian way — 4/9/26 for the 4th of
+  September — in the week headings and on each day column. Weeks are also set
+  apart more clearly: a coloured line and a bigger gap between them, and the
+  week's dates stay pinned at the top as you scroll, so it's harder to drift
+  into the next week without noticing. The JPG export matches.
 dependencies: []
 path: ""
 defaultUsername: ""

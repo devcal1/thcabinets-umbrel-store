@@ -77,6 +77,18 @@ schedule data or anything else with production-data risk.
   plus admin filter-bar work in `admin.html`/`admin.js`/`admin.css` and
   `search.css`. Unreviewed — never let it ride along in an unrelated commit;
   it ships as its own reviewed release or not at all.
+- Manifest **1.7.3, pushed 2026-09-08** (frontend-only: schedule.js/css):
+  dates now render Australian — week heading `7/9/26 – 11/9/26` (client
+  `fmtAU`, d/m/yy no zero-pad, built from `week.start`; the server's
+  `week.label` is now deliberately unused), day headers `MON 7/9`. Weeks are
+  separated harder: `.week-section` gets a 4px accent `border-top` and doubled
+  bottom margin, and `.week-head` is `position: sticky` at `top: var(--nav-h)`
+  so the week's dates stay pinned while scrolling. `--nav-h` is measured
+  (`nav.offsetHeight`) inside `syncRowHeights` (render/resize/fonts-ready) — a
+  fixed-width TV gets the right value at boot. Print: week-head reverts to
+  static and each week gets `break-before: page`. All mirrored in `exportJpg`
+  (AU date strings + a 2px accent rule per week). Verified incl. Dec→Jan year
+  rollover; no new assets/API paths so the auth whitelist is unchanged.
 - Manifest **1.7.2, published & live 2026-09-07** (frontend-only:
   schedule.js/css; CI run #4 green, owner ran Update on the device): per
   week the manufacturing/installing panels align — a job in both sits on the

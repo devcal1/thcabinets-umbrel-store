@@ -139,14 +139,29 @@ main {
 .chip-worker .chip-x:hover { opacity: 1; }
 
 /* — week / grid — */
-.week-section { margin-bottom: var(--space-8); }
+/* Weeks must read as hard blocks on the TV — the accent band marks where a
+   week starts, and the doubled gap stops a scroll drifting into the next week
+   unnoticed. */
+.week-section {
+  margin-bottom: calc(var(--space-8) * 2);
+  border-top: 4px solid var(--color-accent);
+}
 .week-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
   margin-bottom: var(--space-4);
+  /* Sticky just below the nav (its measured height lands in --nav-h via
+     syncRowHeights), so whichever week you're scrolled into stays named
+     on screen. Opaque background so rows slide under it cleanly. */
+  position: sticky;
+  top: var(--nav-h, 62px);
+  z-index: 4;
+  background: var(--color-bg);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-divider);
 }
-.week-head h2 { margin: 0; font-size: 20px; }
+.week-head h2 { margin: 0; font-size: 24px; color: var(--color-accent); }
 .week-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -318,6 +333,12 @@ main {
   /* Borders always print, so the lock-in marker survives even when the
      browser's "background graphics" option is off. */
   .sched-cell.flagged { border-left: 3px solid #a97d17; }
+  /* One week per printed page: the on-screen sticky banner has no print
+     analog, so the page break is the week separation there. Sticky itself is
+     inert in paged media; the accent heading prints fine. */
+  .week-section + .week-section { break-before: page; }
+  .week-head { position: static; background: none; }
+  .week-head h2 { color: #111 !important; }
   /* .job-actions is hidden in print, so mirror the orange notes icon with a
      printable marker (darker orange for white paper). */
   .has-notes-row .job-cell::after {
