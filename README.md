@@ -84,8 +84,10 @@ install/update.
 - **`/search.html`** — customer/showroom-facing. Type a keyword, live fuzzy
   search over photo tags, click a photo to see it larger. Deliberately
   read-only and chrome-free (no edit controls), per the original design brief.
-- **`/admin.html`** — staff-facing. **Not linked from any public page** —
-  bookmark the URL. There's no login on it yet (a deliberate, revisitable
+- **`/admin.html`** — staff-facing. It *is* linked from the landing page, and
+  is gated by the Umbrel login at the app proxy (only the schedule board is
+  deliberately exempt — see the auth whitelist in `docker-compose.yml`). There
+  is no *app-level* login on it (a deliberate, revisitable
   choice, not an oversight) — if that stops being okay, the multi-user login
   approach already scoped for this app (Node + `better-sqlite3` + `bcrypt` +
   `express-session`) slots in as middleware in front of the admin routes
@@ -115,27 +117,39 @@ install/update.
     on older photos without re-uploading them.
 
 - **`/schedule.html`** — staff-facing live schedule, replacing the whiteboard.
-  Two weeks are shown at a time (browse to any past/future week with the
-  arrows or the date picker — it always snaps to the Monday of whichever
-  date you pick). Each week has a Manufacturing and an Installing panel,
-  jobs as rows, Mon–Fri as columns:
+  One week is shown at a time, filling the width of the screen (browse to any
+  past/future week with the arrows or the date picker — it always snaps to the
+  Monday of whichever date you pick). The week has a Manufacturing and an
+  Installing panel, jobs as rows, Mon–Fri as columns. A job that appears in
+  both panels sits on the same line whenever the two rows share a name:
   - **Add a job** — type a name in the box under either panel and hit
     **+ Add**. Typing a name that already exists (autocomplete suggests it)
     reuses that job, so the same job can have rows in both Manufacturing and
     Installing, or across different weeks, while sharing one name/notes.
   - **Assign a worker to a day** — click the dashed **+** in that day's
-    cell and pick a name; click the **×** on a chip to remove it.
+    cell and pick a name; click the **×** on a chip to remove it. Chips stack
+    two deep and then start a new column, so a third and fourth worker sit
+    beside the first and second rather than making the row twice as tall. In
+    those crowded cells the **×** appears when you hover the chip.
   - **Rename a job** — click its name and type; saves on Enter/blur.
   - **Notes** — the pencil icon expands a per-job notes field.
-  - **Reorder / copy forward / remove** — the up/down arrows reorder a row
-    within its panel, the arrow-right icon duplicates the row (and its
-    assignments) onto the next week, the trash icon removes the row from
-    that week (the job itself, and its other rows, are untouched).
+  - **Reorder** — drag a row by its grip handle (⠿) to move it up or down
+    within its own panel. Dragging is confined to one panel: a job can't be
+    dragged between Manufacturing and Installing.
+  - **Move / copy to another week** — the left and right arrow icons move the
+    row, along with everyone assigned to it, to the previous or next week.
+    The copy icon duplicates it (and its assignments) onto the next week
+    instead, leaving the original where it is.
+  - **Remove** — the trash icon removes the row from that week (the job
+    itself, and its other rows, are untouched).
   - **Export PDF** — opens the browser print dialog (choose "Save as PDF").
-    **Export JPG** — renders the current two weeks to a downloadable image,
+    **Export JPG** — renders the current week to a downloadable image,
     drawn from the live data (not a screenshot).
-  - No login — anyone on the LAN who opens the page can view and edit,
-    same trust model as the rest of this app.
+  - No login — anyone on the LAN who opens the page can view and edit, the
+    whiteboard trust model it replaced. This board is the **exception**: every
+    other page (landing, search, admin, workers) sits behind the Umbrel login,
+    so the TV must bookmark `/schedule.html` directly rather than the app's
+    default landing page.
 - **`/workers.html`** — manage the crew roster shown on the schedule: add a
   worker, rename them, drag the hue slider to change their chip colour, or
   **Archive** someone who's left (keeps their name/colour on past weeks'

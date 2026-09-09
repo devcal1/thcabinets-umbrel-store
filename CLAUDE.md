@@ -56,7 +56,18 @@ history were removed 2026-08-27. It is not part of this project.
 8. **The JPG export is hand-drawn to canvas**, not a DOM screenshot — see
    `exportJpg()` in [schedule.js](thcabinets-splash/app/public/schedule.js). Any
    new visual element on the board must be mirrored there or it silently won't
-   appear in exports. This has caused a real bug before.
+   appear in exports. This has caused a real bug before. Currently mirrored:
+   shared line heights + the orange notes dot (1.7.2), AU dates + the per-week
+   accent rule (1.7.3), and the **two-row column-major chip grid** (1.8.0) —
+   chip layout lives in two places (`.sched-chips` / `rowEl` and `exportJpg`'s
+   `CHIP_ROWS` block) and both must change together. `alignPanels()` is shared
+   by `renderWeeks()` and `exportJpg()`; keep both callers on it.
+9. **Prefer extending `PATCH /api/rows/:id/move` over adding a route.** The
+   schedule board is ungated via `PROXY_AUTH_WHITELIST`, which matches paths
+   (`/api/rows/*`) — a brand-new API path silently 302s the workshop TV to the
+   login until it's whitelisted in `docker-compose.yml`. That endpoint already
+   multiplexes three modes on the request body (`direction` / `toIndex` /
+   `week`) for exactly this reason. Same trap class as rule 8.
 
 ## Shipping a change
 
@@ -70,21 +81,63 @@ history were removed 2026-08-27. It is not part of this project.
 mock-server rigs. Spot-check builds; go deep only for changes touching stored
 schedule data or anything else with production-data risk.
 
-## Current state (as of 2026-09-07)
+## Current state (as of 2026-09-09)
 
 - **Uncommitted WIP in the working tree** (predates the 1.7.x releases and was
-  deliberately kept out of them): a `GET /api/tags` endpoint in `server.js`
-  plus admin filter-bar work in `admin.html`/`admin.js`/`admin.css` and
-  `search.css`. Unreviewed — never let it ride along in an unrelated commit;
-  it ships as its own reviewed release or not at all.
+  deliberately kept out of them, and out of 1.8.0): a `GET /api/tags` endpoint
+  in `server.js` plus admin filter-bar work in
+  `admin.html`/`admin.js`/`admin.css` and `search.css` — 102 insertions / 12
+  deletions across 5 files. Unreviewed — never let it ride along in an
+  unrelated commit; it ships as its own reviewed release or not at all.
+  **`server.js` is the collision point** — 1.8.0 also edits it, so that file
+  needed a selective stage. `git add -p` is interactive and unavailable in the
+  Claude Code Bash tool, so the working method is: `git diff -- <file>` to a
+  patch, drop the WIP hunk, `git apply --cached --recount`. Two traps found
+  doing it: MSYS rewrites an argument containing `/api/tags` into
+  `C:/Program Files/Git/api/tags` (use a marker with no leading slash), and the
+  staged blob must be syntax-checked via `git show :<path>` before committing,
+  because CI builds the commit and not the working tree.
+  Known gaps in the WIP itself, if it's ever picked up: the tag chips load once
+  at boot and never refresh (counts go stale after an upload, delete or inline
+  tag edit), and `appendTag` updates the DOM field but not the cached
+  `allPhotos` entry, so filtering after an inline edit matches stale tags.
+- Manifest **1.8.0, published 2026-09-09** (`6f2418b`; schedule.js/css +
+  server.js + CI; multi-arch `sha256:bd07b8bc…` on GHCR, `:latest` verified
+  pointing at it; owner Update on the device pending at hand-off). The board
+  shows **one week at a time** — `loadSchedule` slices `data.weeks` to
+  `[0]`; `/api/schedule` still returns the fortnight deliberately (it's on
+  the ungated whitelist, and everything downstream loops over `state.weeks`,
+  so restoring two weeks is that one line). `main` max-width 1416→1860px for
+  the 1920x1080 laptop/TV. Worker chips are a **column-major 2-row grid**
+  (`.sched-chips`, `grid-auto-flow: column`, `grid-auto-columns: minmax(0,1fr)`;
+  the row count is set inline per cell in `rowEl` so a single-chip cell can't
+  inherit an empty track's gap): 2nd under 1st, 3rd beside 1st, 4th under 3rd.
+  Cells with 3+ chips get `.crowded` — tighter padding and the `×` absolutely
+  positioned so it costs no width (at ~63px/column the chrome left 25px for a
+  name needing 53px, so "Shooter" rendered as "S…"); 1–2 chip cells are
+  untouched. Rows **drag to reorder** within their own panel via a grip handle
+  (the up/down arrow buttons are gone); cross-panel drops are refused so an
+  installing row's `day_flags` can never land on a manufacturing row. Two
+  buttons **move a row a week** either way. `alignPanels` now anchors on
+  **normalised job name**, not `jobId`, so the same job typed separately into
+  each panel lines up (a strict superset of the old behaviour). Also fixed:
+  `ph-flag-fill` drew an empty glyph — the vendored Phosphor build is regular
+  weight only with **no fill variants** — so the active flag button had been
+  blank on the live board. All mirrored in `exportJpg` (chip column grid,
+  `dayW` 132→150). No new asset or API paths, so the auth whitelist is
+  unchanged. **Two new invariants, same class as rule 8** — see the additions
+  under Non-negotiables.
 - Manifest **1.7.3, published 2026-09-08** (frontend-only: schedule.js/css;
-  CI run #5 green, multi-arch on GHCR; owner Update on the device still
-  pending at hand-off):
+  CI run #5 green, multi-arch on GHCR; **superseded on-device by 1.8.0**,
+  which carries it — if the owner never ran the 1.7.3 Update, 1.8.0 delivers
+  both):
   dates now render Australian — week heading `7/9/26 – 11/9/26` (client
   `fmtAU`, d/m/yy no zero-pad, built from `week.start`; the server's
   `week.label` is now deliberately unused), day headers `MON 7/9`. Weeks are
   separated harder: `.week-section` gets a 4px accent `border-top` and doubled
-  bottom margin, and `.week-head` is `position: sticky` at `top: var(--nav-h)`
+  bottom margin (the doubling was reverted in 1.8.0 — with one week on screen
+  it was just dead space; the accent border and sticky head stayed), and
+  `.week-head` is `position: sticky` at `top: var(--nav-h)`
   so the week's dates stay pinned while scrolling. `--nav-h` is measured
   (`nav.offsetHeight`) inside `syncRowHeights` (render/resize/fonts-ready) — a
   fixed-width TV gets the right value at boot. Print: week-head reverts to
@@ -142,10 +195,19 @@ schedule data or anything else with production-data risk.
 ## Known issues / deferred
 
 - `/admin.html` **is** linked from [index.html:121](thcabinets-splash/app/public/index.html:121),
-  though the README and admin.html itself both claim it's unlinked. Since 1.7.1
-  the Umbrel login properly gates admin at the proxy (the auth whitelist exempts
-  only schedule routes), so unlinked-ness no longer carries any security weight —
-  what remains is fixing the stale README/admin.html copy.
+  though [admin.html:12](thcabinets-splash/app/public/admin.html:12) still tells
+  the reader "Not linked publicly — bookmark this page." Since 1.7.1 the Umbrel
+  login gates admin at the proxy (the auth whitelist exempts only schedule
+  routes), so unlinked-ness carries no security weight — this is purely stale
+  copy. The README half was corrected 2026-09-09; the admin.html half is app
+  code, so it needs a version bump to ship and is currently entangled with the
+  uncommitted `/api/tags` WIP in that same file. Fold it into whatever release
+  carries that WIP rather than spending a release on one sentence.
+- Row dragging (1.8.0) uses **HTML5 drag-and-drop**, which needs a mouse — it
+  does nothing on a touchscreen. Fine for the current setup (a laptop driving
+  the TV), but if a touch panel ever goes in the workshop the drag needs
+  redoing on pointer events. The server side is already generic: the endpoint
+  takes an arbitrary `toIndex`, so only the DOM wiring would change.
 - [tokens.css:6](thcabinets-splash/app/public/tokens.css:6) still `@import`s Inter
   from Google Fonts — render-blocking on a LAN with no internet, despite Phosphor
   and fuse.js having been vendored for exactly that reason. Vendoring Inter's
