@@ -1,0 +1,13 @@
+# Runtime volumes — persistent app data on the Umbrel, never source.
+# photos.db here holds the ENTIRE live schedule (workers / jobs / week_rows /
+# assignments / day_flags), so on any machine that has actually run the app a
+# stray `git add -A` would publish real business data to a public repo.
+# The .gitkeep files stay tracked so the volume mount points survive a clone.
+thcabinets-splash/data/**
+!thcabinets-splash/data/**/
+!thcabinets-splash/data/**/.gitkeep
+
+# Installed dependencies. package-lock.json is deliberately NOT ignored — the
+# image build wants it committed (see "Known issues" in CLAUDE.md).
+node_modules/
+npm-debug.log*

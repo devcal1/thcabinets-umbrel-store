@@ -24,7 +24,7 @@ directly rather than asking for uploads.
 | [app/public/](thcabinets-splash/app/public/) | 5 pages: index, search, admin, schedule, workers |
 | [app/public/shared.js](thcabinets-splash/app/public/shared.js) | `api()` / `toast()` / `guarded()` / `hueColors()` |
 | [app/public/tokens.css](thcabinets-splash/app/public/tokens.css) | only genuinely-shared design tokens |
-| `thcabinets-splash/data/` | persistent runtime volumes ONLY — uploads, db, gemini key |
+| `thcabinets-splash/data/` | persistent runtime volumes ONLY — uploads, db, gemini key; git-ignored except the `.gitkeep`s |
 | [archive/timetable-scheduler/](archive/timetable-scheduler/) | superseded prototype, ignore |
 
 `joinery-quoter/` at the repo root is an **empty untracked shell** — its files and
@@ -157,9 +157,10 @@ schedule data or anything else with production-data risk.
   owner sign-off required, run it only deliberately.
 - No `package-lock.json` — every image build resolves deps fresh, so the tested
   amd64 image and the published arm64 image can silently differ. Generate one
-  with `npm install --package-lock-only` (needs npm; not available on the
-  Windows dev machine), verify it pins `@img/sharp-linuxmusl-x64` **and**
-  `-arm64`, switch the Dockerfile to `npm ci --omit=dev`.
+  with `npm install --package-lock-only` (node v24 + npm 11 ARE installed on
+  the Windows dev machine as of 2026-09-09 — this is unblocked), verify it
+  pins `@img/sharp-linuxmusl-x64` **and** `-arm64`, switch the Dockerfile to
+  `npm ci --omit=dev`.
 - `GET /api/schedule` with no `?week=` computes "today" in UTC, so it returns
   last week as `weeks[0]` on Monday mornings AEST. Unreachable via the shipped
   frontend (it always sends `?week=`); fixing the default needs the owner to
