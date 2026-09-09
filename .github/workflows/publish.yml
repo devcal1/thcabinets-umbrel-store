@@ -218,6 +218,74 @@ jobs:
 
           echo "Flag smoke test passed."
 
+          echo "--- Row reordering and week moves ---"
+          # These two modes rewrite stored ordering (sort_order across a whole
+          # panel) and stored placement (week_start), so they get exercised
+          # against a real container and real SQLite before anything publishes.
+
+          echo "Adding three manufacturing rows to reorder..."
+          add_order_row() {
+            curl -sf -X POST -H "Content-Type: application/json" \
+              -d "{\"weekStart\":\"$week1_start\",\"panel\":\"manufacturing\",\"jobName\":\"CI Order $1\"}" \
+              http://localhost:3000/api/rows | jq -r '.rowId'
+          }
+          ra=$(add_order_row A)
+          rb=$(add_order_row B)
+          rc=$(add_order_row C)
+          for r in "$ra" "$rb" "$rc"; do
+            [ "$r" != "null" ] && [ -n "$r" ] || { echo "A reorder row got no rowId" >&2; exit 1; }
+          done
+
+          # Order of just these three rows, in board order.
+          panel_order() {
+            curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+              | jq -r "[.weeks[0].manufacturing[] | select(.rowId==$ra or .rowId==$rb or .rowId==$rc) | .rowId] | join(\",\")"
+          }
+          got=$(panel_order)
+          [ "$got" = "$ra,$rb,$rc" ] || { echo "Expected $ra,$rb,$rc on insert, got $got" >&2; exit 1; }
+
+          echo "Dragging the last row to the front of the panel..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH -H "Content-Type: application/json" \
+            -d '{"toIndex":0}' "http://localhost:3000/api/rows/$rc/move")
+          [ "$status" = "204" ] || { echo "Expected 204 on toIndex move, got $status" >&2; exit 1; }
+          got=$(panel_order)
+          [ "$got" = "$rc,$ra,$rb" ] || { echo "Expected $rc,$ra,$rb after drag, got $got" >&2; exit 1; }
+
+          echo "A move with no direction/toIndex/week must be rejected..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH -H "Content-Type: application/json" \
+            -d '{}' "http://localhost:3000/api/rows/$ra/move")
+          [ "$status" = "400" ] || { echo "Expected 400 on empty move body, got $status" >&2; exit 1; }
+
+          echo "Assigning a worker so the week move has something to carry..."
+          curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"day\":\"wed\",\"workerId\":$worker_id}" \
+            "http://localhost:3000/api/rows/$ra/assignments" > /dev/null
+
+          next_week=$(date -u -d "$week1_start + 7 days" +%F)
+          echo "Moving that row to next week..."
+          curl -sf -X PATCH -H "Content-Type: application/json" -d '{"week":"next"}' \
+            "http://localhost:3000/api/rows/$ra/move" | jq -e ".weekStart == \"$next_week\"" > /dev/null
+
+          echo "It must be gone from this week and present next week, worker intact..."
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e "[.weeks[0].manufacturing[] | select(.rowId == $ra)] | length == 0" > /dev/null
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e ".weeks[1].manufacturing[] | select(.rowId == $ra) | .cells.wed[] | select(.workerId == $worker_id)" > /dev/null
+
+          echo "Moving it back to the original week..."
+          curl -sf -X PATCH -H "Content-Type: application/json" -d '{"week":"prev"}' \
+            "http://localhost:3000/api/rows/$ra/move" | jq -e ".weekStart == \"$week1_start\"" > /dev/null
+          curl -sf "http://localhost:3000/api/schedule?week=$week1_start" \
+            | jq -e ".weeks[0].manufacturing[] | select(.rowId == $ra) | .cells.wed[] | select(.workerId == $worker_id)" > /dev/null
+
+          echo "Cleaning up the reorder rows..."
+          for r in $ra $rb $rc; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/rows/$r")
+            [ "$status" = "204" ] || { echo "Expected 204 deleting reorder row $r, got $status" >&2; exit 1; }
+          done
+
+          echo "Reorder and week-move smoke test passed."
+
           echo "Archiving the CI worker..."
           curl -sf -X PATCH -H "Content-Type: application/json" -d '{"archived":true}' \
             "http://localhost:3000/api/workers/$worker_id" | jq -e '.archived == true' > /dev/null

@@ -72,7 +72,13 @@
   }
   async function loadSchedule() {
     const data = await api(`/api/schedule?week=${state.weekStart}`);
-    state.weeks = data.weeks;
+    // The board shows ONE week at a time. /api/schedule still returns the
+    // fortnight (weeks[0] and weeks[0]+7) and is left alone on purpose — it's
+    // on the ungated whitelist, other callers may rely on its shape, and
+    // dropping the extra week here costs nothing. Everything downstream
+    // (renderWeeks, alignPanels, exportJpg) already loops over state.weeks,
+    // so a one-element array needs no special-casing.
+    state.weeks = data.weeks.slice(0, 1);
   }
 
   // --- legend ---
@@ -94,7 +100,12 @@
     span.className = "chip-worker";
     span.style.background = chip.bg;
     span.style.color = chip.fg;
+    // Chips share a cell's width once they wrap into columns, so the name
+    // ellipsises rather than spilling into the next day — title keeps the
+    // full name reachable on hover.
+    span.title = chip.name;
     const nameSpan = document.createElement("span");
+    nameSpan.className = "chip-name";
     nameSpan.textContent = chip.name;
     span.appendChild(nameSpan);
     const x = document.createElement("span");
@@ -160,6 +171,72 @@
     }
   });
 
+  // --- drag to reorder ---
+  // Set by a grip's dragstart, cleared on dragend. Dragging is scoped to one
+  // panel of one week: the drop targets are wired per-grid in panelEl and
+  // refuse a drag whose panelKey doesn't match, so a job can't be dropped
+  // across the Manufacturing/Installing divide (an installing row can carry
+  // locked-in day flags that a manufacturing row is not allowed to have).
+  let dragState = null;
+
+  function clearDropMarkers() {
+    for (const el of weeksContainer.querySelectorAll(".drop-before, .drop-after")) {
+      el.classList.remove("drop-before", "drop-after");
+    }
+  }
+
+  // Real rows only — the head row and alignPanels' blank padding rows carry no
+  // data-row-id, so this is the panel's true server order (alignPanels only
+  // ever inserts nulls, it never reorders a panel).
+  function realRows(grid) {
+    return [...grid.querySelectorAll(".sched-row[data-row-id]")];
+  }
+
+  function rowUnderPointer(grid, e) {
+    const row = e.target.closest(".sched-row[data-row-id]");
+    return row && grid.contains(row) ? row : null;
+  }
+
+  // Where the dragged row lands once it has been lifted out of the list. The
+  // server applies the same lift-then-insert, so this index transfers directly.
+  function dropIndex(grid, targetRow, after) {
+    const ids = realRows(grid).map((r) => Number(r.dataset.rowId));
+    const from = ids.indexOf(dragState.rowId);
+    if (from !== -1) ids.splice(from, 1);
+    const at = ids.indexOf(Number(targetRow.dataset.rowId));
+    return at === -1 ? ids.length : at + (after ? 1 : 0);
+  }
+
+  function wireDropTarget(grid, panelKey) {
+    grid.addEventListener("dragover", (e) => {
+      if (!dragState || dragState.panelKey !== panelKey) return;
+      const target = rowUnderPointer(grid, e);
+      if (!target || Number(target.dataset.rowId) === dragState.rowId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = target.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      clearDropMarkers();
+      target.classList.add(after ? "drop-after" : "drop-before");
+    });
+    grid.addEventListener("dragleave", (e) => {
+      if (!grid.contains(e.relatedTarget)) clearDropMarkers();
+    });
+    grid.addEventListener("drop", guarded(async (e) => {
+      if (!dragState || dragState.panelKey !== panelKey) return;
+      const target = rowUnderPointer(grid, e);
+      if (!target || Number(target.dataset.rowId) === dragState.rowId) return;
+      e.preventDefault();
+      const rect = target.getBoundingClientRect();
+      const toIndex = dropIndex(grid, target, e.clientY > rect.top + rect.height / 2);
+      const rowId = dragState.rowId;
+      dragState = null;
+      clearDropMarkers();
+      await api(`/api/rows/${rowId}/move`, { method: "PATCH", body: JSON.stringify({ toIndex }) });
+      await refresh();
+    }));
+  }
+
   // --- row rendering ---
   function rowEl(row, panelKey, todayIndex) {
     const wrap = document.createDocumentFragment();
@@ -191,23 +268,54 @@
 
     const actions = document.createElement("div");
     actions.className = "job-actions";
+
+    // Drag handle. The row itself is deliberately NOT draggable: it holds the
+    // job-name text input, and a draggable ancestor breaks click-to-position
+    // and text selection inside an input in Chrome. A dedicated grip keeps
+    // renaming and dragging from fighting each other.
+    const grip = document.createElement("button");
+    grip.type = "button";
+    grip.className = "btn btn-ghost btn-icon drag-grip";
+    grip.title = "Drag to reorder";
+    grip.draggable = true;
+    grip.innerHTML = '<i class="ph ph-dots-six-vertical"></i>';
+    grip.addEventListener("dragstart", (e) => {
+      dragState = { rowId: row.rowId, panelKey };
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox drops a drag that carries no data payload.
+      e.dataTransfer.setData("text/plain", String(row.rowId));
+      // Drag the whole row, not the little grip button.
+      e.dataTransfer.setDragImage(rowDiv, 12, 12);
+      rowDiv.classList.add("dragging");
+    });
+    grip.addEventListener("dragend", () => {
+      dragState = null;
+      rowDiv.classList.remove("dragging");
+      clearDropMarkers();
+    });
+    actions.appendChild(grip);
+
     const notesBtn = iconBtn("ph-note-pencil", "Notes", () => toggleNotes(row.rowId));
     if (row.notes && row.notes.trim()) {
       notesBtn.classList.add("has-notes");
       rowDiv.classList.add("has-notes-row"); // drives the print-only marker
     }
     actions.appendChild(notesBtn);
-    actions.appendChild(iconBtn("ph-arrow-fat-lines-right", "Copy to next week", guarded(async () => {
+    actions.appendChild(iconBtn("ph-copy", "Copy to next week", guarded(async () => {
       await api(`/api/rows/${row.rowId}/duplicate`, { method: "POST", body: JSON.stringify({}) });
       toast("Copied to next week");
       await refresh();
     })));
-    actions.appendChild(iconBtn("ph-arrow-up", "Move up", guarded(async () => {
-      await api(`/api/rows/${row.rowId}/move`, { method: "PATCH", body: JSON.stringify({ direction: "up" }) });
+    // Move (not copy) to the adjacent week. Assignments and flags hang off
+    // week_row_id, which the server leaves alone — the workers come along.
+    actions.appendChild(iconBtn("ph-arrow-square-left", "Move to previous week", guarded(async () => {
+      await api(`/api/rows/${row.rowId}/move`, { method: "PATCH", body: JSON.stringify({ week: "prev" }) });
+      toast("Moved to previous week");
       await refresh();
     })));
-    actions.appendChild(iconBtn("ph-arrow-down", "Move down", guarded(async () => {
-      await api(`/api/rows/${row.rowId}/move`, { method: "PATCH", body: JSON.stringify({ direction: "down" }) });
+    actions.appendChild(iconBtn("ph-arrow-square-right", "Move to next week", guarded(async () => {
+      await api(`/api/rows/${row.rowId}/move`, { method: "PATCH", body: JSON.stringify({ week: "next" }) });
+      toast("Moved to next week");
       await refresh();
     })));
     actions.appendChild(iconBtn("ph-trash", "Remove row", guarded(async () => {
@@ -224,6 +332,19 @@
       cell.className = "sched-cell" + (i === todayIndex ? " today-col" : "") + (flagged ? " flagged" : "");
       const chips = document.createElement("div");
       chips.className = "sched-chips";
+      // Two rows max, filled column-major (see .sched-chips): worker 2 sits
+      // under worker 1, worker 3 starts a second column beside worker 1, 4
+      // under 3. Keeps a busy day two chips tall instead of four, which is
+      // what decides how much of the week fits on the TV.
+      // One worker gets a single track — a second empty track would still
+      // contribute its row gap and pad every quiet row by 5px.
+      // MIRRORED in exportJpg(); the JPG must lay chips out the same way.
+      chips.style.gridTemplateRows = row.cells[day].length > 1 ? "auto auto" : "auto";
+      // 3+ workers means two columns of ~63px, where a chip's padding and its
+      // × leave under half the width for the name ("Shooter" truncates to one
+      // letter). .crowded compresses those cells only — the common 1-2 worker
+      // cell keeps the roomier chip it has today.
+      if (row.cells[day].length > 2) chips.classList.add("crowded");
       for (const chip of row.cells[day]) chips.appendChild(chipEl(chip));
       cell.appendChild(chips);
 
@@ -244,7 +365,11 @@
         flagBtn.title = flagged
           ? "Locked in with client — click to unflag"
           : "Flag as locked in with client";
-        flagBtn.innerHTML = `<i class="ph ${flagged ? "ph-flag-fill" : "ph-flag"}"></i>`;
+        // The vendored Phosphor build is regular weight only — it has no
+        // -fill variants, so the old ph-flag-fill drew an empty glyph on
+        // exactly the flagged cells it was meant to emphasise. The active
+        // state is carried by .cell-flag.active (solid amber border + wash).
+        flagBtn.innerHTML = '<i class="ph ph-flag"></i>';
         flagBtn.addEventListener("click", guarded(async () => {
           if (flagged) {
             await api(`/api/rows/${row.rowId}/flags/${day}`, { method: "DELETE" });
@@ -314,16 +439,27 @@
   // --- panel alignment ---
   // A job appearing in both panels of a week must sit on the same line, with
   // blank rows (null) padding the other panel. Anchors are the LCS of the two
-  // panels' jobId sequences, so both panels' manual row order is respected —
+  // panels' job-name sequences, so both panels' manual row order is respected —
   // if the orders conflict, the largest consistent set of jobs still aligns.
   // Unmatched rows between anchors pair up index-wise to keep the board short.
+  //
+  // Matching is by NAME, not jobId: the same job typed separately into each
+  // panel creates two independent job records, and those used to sit on
+  // unrelated lines despite reading identically on the board. Name matching is
+  // a superset of the old behaviour — one job record in both panels has the
+  // same name in both by definition.
+  function alignKey(row) {
+    return row.jobName.trim().toLowerCase();
+  }
   function alignPanels(week) {
     const a = week.manufacturing;
     const b = week.installing;
+    const keyA = a.map(alignKey);
+    const keyB = b.map(alignKey);
     const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
     for (let i = a.length - 1; i >= 0; i--) {
       for (let j = b.length - 1; j >= 0; j--) {
-        dp[i][j] = a[i].jobId === b[j].jobId
+        dp[i][j] = keyA[i] === keyB[j]
           ? dp[i + 1][j + 1] + 1
           : Math.max(dp[i + 1][j], dp[i][j + 1]);
       }
@@ -343,7 +479,7 @@
     let i = 0;
     let j = 0;
     while (i < a.length && j < b.length) {
-      if (a[i].jobId === b[j].jobId) {
+      if (keyA[i] === keyB[j]) {
         flushSegments();
         outA.push(a[i++]);
         outB.push(b[j++]);
@@ -456,6 +592,7 @@
       grid.appendChild(row ? rowEl(row, panelDef.key, todayIndex) : blankRowEl(todayIndex));
     }
 
+    wireDropTarget(grid, panelDef.key);
     panel.appendChild(grid);
 
     const addRow = document.createElement("div");
@@ -586,7 +723,9 @@
       toast("Nothing to export yet");
       return;
     }
-    const dayW = 132;
+    // Wider than it was: chips now sit in up to two columns per cell (mirroring
+    // the board), and 132px left a two-column day unreadable.
+    const dayW = 150;
     const jobW = 190;
     const panelW = jobW + dayW * 5;
     const gap = 28;
@@ -598,9 +737,16 @@
     const panelTitleH = 24;
     const weekTitleH = 30;
 
+    // Chips stack at most two deep before spilling into a new column (see
+    // .sched-chips and the gridTemplateRows line in rowEl) — so a cell is at
+    // most two chips tall no matter how many workers are on the day.
+    const CHIP_ROWS = 2;
+    function chipRowsUsed(n) {
+      return Math.max(1, Math.min(n, CHIP_ROWS));
+    }
     function rowHeight(row) {
-      const maxChips = Math.max(1, ...DAY_KEYS.map((d) => row.cells[d].length));
-      return Math.max(34, rowPad * 2 + maxChips * chipH + (maxChips - 1) * chipGap);
+      const deepest = Math.max(1, ...DAY_KEYS.map((d) => chipRowsUsed(row.cells[d].length)));
+      return Math.max(34, rowPad * 2 + deepest * chipH + (deepest - 1) * chipGap);
     }
 
     // Mirrors the on-screen alignment: one shared height per line, both panels.
@@ -694,19 +840,25 @@
                 ctx.fillStyle = "#e8b339";
                 ctx.fillRect(cellX, py, 3, h);
               }
-              let cy = py + rowPad;
-              for (const chip of row.cells[day]) {
-                const cx = x + jobW + i * dayW + 4;
+              // Column-major, two deep — the same fill order as the board's
+              // .sched-chips grid: 2nd under 1st, 3rd beside 1st, 4th under 3rd.
+              // Columns split the cell evenly, so names clip to their column
+              // exactly like the board's ellipsis does.
+              const chips = row.cells[day];
+              const chipCols = Math.max(1, Math.ceil(chips.length / CHIP_ROWS));
+              const colW = (dayW - 8) / chipCols;
+              chips.forEach((chip, k) => {
+                const cx = cellX + 4 + Math.floor(k / CHIP_ROWS) * colW;
+                const cy = py + rowPad + (k % CHIP_ROWS) * chipH;
                 const text = chip.name;
                 ctx.font = "500 11px Inter, system-ui, sans-serif";
-                const w = Math.min(dayW - 10, ctx.measureText(text).width + 14);
+                const w = Math.min(colW - 4, ctx.measureText(text).width + 14);
                 ctx.fillStyle = chip.bg;
                 roundRect(ctx, cx, cy, w, chipH - 4, 5);
                 ctx.fill();
                 ctx.fillStyle = chip.fg;
                 ctx.fillText(text, cx + 7, cy + (chipH - 4) / 2, w - 12);
-                cy += chipH;
-              }
+              });
             });
           }
 

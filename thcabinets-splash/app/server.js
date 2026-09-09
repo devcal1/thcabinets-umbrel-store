@@ -512,21 +512,69 @@ app.post("/api/rows", (req, res) => {
   res.status(201).json(buildScheduleRow(weekRow));
 });
 
+// Three move modes share this one endpoint deliberately. The schedule board is
+// ungated (PROXY_AUTH_WHITELIST in docker-compose.yml matches /api/rows/*), so
+// a brand-new path would have to be whitelisted or the workshop TV silently
+// 302s to the login. Extending a path already on the list avoids that trap.
+//   { direction: "up" | "down" }  — swap with the neighbour
+//   { toIndex: n }                — drag-and-drop reorder inside the panel
+//   { week: "prev" | "next" }     — move to the adjacent week, workers included
 app.patch("/api/rows/:id/move", (req, res) => {
   const id = Number(req.params.id);
   const row = getWeekRowOr404(id, res);
   if (!row) return;
-  const direction = req.body.direction;
-  if (direction !== "up" && direction !== "down") {
-    res.status(400).json({ error: "direction must be 'up' or 'down'" });
+  const { direction, toIndex, week } = req.body;
+
+  // --- move the row to the adjacent week ---
+  if (week === "prev" || week === "next") {
+    const toWeekStart = addDays(row.week_start, week === "next" ? 7 : -7);
+    const maxOrder = db
+      .prepare("SELECT MAX(sort_order) AS m FROM week_rows WHERE week_start = ? AND panel = ?")
+      .get(toWeekStart, row.panel).m;
+    // assignments and day_flags both key off week_row_id, which doesn't change
+    // here — so the assigned workers (and any locked-in flags) travel with the
+    // row. Nothing is deleted or re-created; this is a single column update.
+    db.prepare("UPDATE week_rows SET week_start = ?, sort_order = ? WHERE id = ?")
+      .run(toWeekStart, (maxOrder ?? -1) + 1, id);
+    res.json({ weekStart: toWeekStart });
     return;
   }
+
   const siblings = db
     .prepare(
       "SELECT id, sort_order FROM week_rows WHERE week_start = ? AND panel = ? ORDER BY sort_order ASC, id ASC"
     )
     .all(row.week_start, row.panel);
   const idx = siblings.findIndex((s) => s.id === id);
+
+  // --- drop the row at an arbitrary position (drag and drop) ---
+  if (Number.isInteger(toIndex)) {
+    // toIndex is a POST-removal index: the row is lifted out first, then
+    // inserted, which is exactly how the board computes the number it sends.
+    const to = Math.max(0, Math.min(toIndex, siblings.length - 1));
+    if (to === idx) {
+      res.status(204).end();
+      return;
+    }
+    const ids = siblings.map((s) => s.id);
+    ids.splice(to, 0, ids.splice(idx, 1)[0]);
+    // Renumbering the whole panel-week is what makes an arbitrary drop work
+    // (a pairwise swap can't). sort_order is presentation-only — no job,
+    // assignment or flag data is read or written here.
+    const reorder = db.transaction(() => {
+      const update = db.prepare("UPDATE week_rows SET sort_order = ? WHERE id = ?");
+      ids.forEach((rowId, i) => update.run(i, rowId));
+    });
+    reorder();
+    res.status(204).end();
+    return;
+  }
+
+  // --- swap with the row above or below ---
+  if (direction !== "up" && direction !== "down") {
+    res.status(400).json({ error: "pass direction ('up'/'down'), toIndex, or week ('prev'/'next')" });
+    return;
+  }
   const swapIdx = direction === "up" ? idx - 1 : idx + 1;
   if (swapIdx < 0 || swapIdx >= siblings.length) {
     res.status(204).end();
