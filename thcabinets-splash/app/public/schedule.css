@@ -107,7 +107,7 @@ textarea.input { min-height: 77px; width: 100%; font-family: var(--font); resize
 main {
   max-width: 1860px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4) var(--space-8);
+  padding: var(--space-3) var(--space-4) var(--space-8);
 }
 .page-head { margin-bottom: var(--space-4); }
 .page-head h1 { margin: 0 0 5px; font-size: 26px; }
@@ -119,6 +119,12 @@ main {
   gap: 10px;
   margin-bottom: var(--space-6);
 }
+/* The title and legend live in the left column (.board-side), under To start.
+   There they stack: one worker per line, left aligned. */
+.board-side .page-head { margin: var(--space-4) 0 0; }
+.board-side .page-head p { line-height: 1.35; }
+.legend-title { margin: var(--space-4) 0 var(--space-3); font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent); }
+.board-side .legend { margin: 0; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: 6px; }
 
 .chip-worker {
   display: inline-flex;
@@ -151,14 +157,14 @@ main {
    kept intentionally: state.weeks is still an array and renderWeeks still
    loops, so showing a fortnight again is a one-line change in loadSchedule.) */
 .week-section {
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-4);
   border-top: 4px solid var(--color-accent);
 }
 .week-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   /* Sticky just below the nav (its measured height lands in --nav-h via
      syncRowHeights), so whichever week you're scrolled into stays named
      on screen. Opaque background so rows slide under it cleanly. */
@@ -166,7 +172,7 @@ main {
   top: var(--nav-h, 62px);
   z-index: 4;
   background: var(--color-bg);
-  padding: var(--space-2) 0;
+  padding: 4px 0;
   border-bottom: 1px solid var(--color-divider);
 }
 .week-head h2 { margin: 0; font-size: 24px; color: var(--color-accent); }
@@ -178,7 +184,7 @@ main {
 }
 @media (max-width: 900px) { .week-cols { grid-template-columns: 1fr; } }
 
-.panel h3 { margin: 0 0 var(--space-3); font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent); }
+.panel h3 { margin: 0 0 var(--space-2); font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent); }
 
 .sched-grid { width: 100%; font-size: 16px; }
 .sched-row {
@@ -395,20 +401,33 @@ main {
 }
 @media (max-width: 900px) { .board { grid-template-columns: minmax(0, 1fr); } }
 
-/* Sticky under the nav like the week banner, and scrolls internally when the
-   list outgrows the screen. */
-.backlog {
+/* The whole left column (To start, then title and legend) is one sticky block
+   under the nav. It scrolls internally as a unit when it outgrows the screen,
+   so the Workers list is never cut off. */
+.board-side {
   position: sticky;
   top: var(--nav-h, 62px);
   max-height: calc(100vh - var(--nav-h, 62px) - var(--space-8));
   overflow-y: auto;
+}
+.backlog {
   padding: var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-lg);
 }
+/* A long waiting list scrolls inside its own box, so Workers stays reachable. */
+.backlog-list { max-height: 45vh; overflow-y: auto; }
+/* Row dragged onto the panel (see schedule.js). Inset offset: the column is a
+   scroll box, so an outline drawn outside the panel would be clipped. */
+.backlog.drop-active {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -4px;
+  border-radius: var(--radius-lg);
+}
 @media (max-width: 900px) {
-  .backlog { position: static; max-height: none; }
+  .board-side { position: static; max-height: none; overflow: visible; }
+  .backlog-list { max-height: none; overflow: visible; }
 }
 .backlog-head {
   display: flex;
@@ -447,7 +466,7 @@ main {
 .finish-week-bar {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-4);
+  margin-top: var(--space-2);
 }
 
 /* Native <dialog>, opened with showModal() so it centres in the top layer and
@@ -549,8 +568,16 @@ main {
 @media print {
   .nav, .add-row, .job-actions, .cell-add, .cell-flag, .chip-x { display: none !important; }
   /* The "To start" sidebar is for the shop floor, not the printed schedule:
-     hide it and let the weeks fill the page as before. */
+     hide it and let the weeks fill the page as before. The title and legend
+     sit in the same column but print above the weeks as they always did, so
+     the column is plain flow here (no sticky, no scroll cap) and the legend
+     goes back to a row of chips. The "Workers" heading is screen-only. */
   .backlog { display: none !important; }
+  .board-side { position: static; max-height: none; overflow: visible; }
+  .board-side .page-head { margin: 0 0 var(--space-4); }
+  .board-side .page-head p { line-height: 1.55; }
+  .legend-title { display: none !important; }
+  .board-side .legend { margin: 0 0 var(--space-6); flex-direction: row; flex-wrap: wrap; align-items: normal; gap: 10px; }
   /* Finish-week button and popup are page chrome, not schedule content. */
   .finish-week-bar, .finish-dialog { display: none !important; }
   .board { display: block; }

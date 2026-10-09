@@ -473,6 +473,52 @@ jobs:
             done
           done
 
+          echo "Send-back to backlog: creating a row to send back..."
+          sb_week="2031-03-24"
+          sb_body=$(curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"weekStart\":\"$sb_week\",\"panel\":\"manufacturing\",\"jobName\":\"CI Send Back\"}" \
+            http://localhost:3000/api/rows)
+          sb_row=$(echo "$sb_body" | jq -r '.rowId')
+          sb_job=$(echo "$sb_body" | jq -r '.jobId')
+          [ "$sb_row" != "null" ] && [ "$sb_job" != "null" ] || { echo "Send-back row not created: $sb_body" >&2; exit 1; }
+
+          echo "Sending the row back to the To start list..."
+          status=$(ci_req -X PATCH -H "Content-Type: application/json" -d '{"backlog":true}' \
+            "http://localhost:3000/api/rows/$sb_row/move")
+          [ "$status" = "200" ] || { echo "Expected 200 sending row back, got $status: $(cat /tmp/ci-body.json)" >&2; exit 1; }
+          sb_backlog_id=$(jq -r '.backlogId' /tmp/ci-body.json)
+          [ "$sb_backlog_id" != "null" ] || { echo "No backlogId returned: $(cat /tmp/ci-body.json)" >&2; exit 1; }
+
+          echo "Confirming the row is gone from the week and the job is in the backlog..."
+          curl -sf "http://localhost:3000/api/schedule?week=$sb_week" \
+            | jq -e "[(.weeks[0].manufacturing + .weeks[0].installing + .weeks[1].manufacturing + .weeks[1].installing)[] | select(.rowId == $sb_row)] | length == 0" > /dev/null
+          curl -sf "http://localhost:3000/api/schedule?week=$sb_week" \
+            | jq -e ".backlog[] | select(.id == $sb_backlog_id and .jobId == $sb_job)" > /dev/null
+
+          echo "Adding a second row for the same job, then sending it back..."
+          sb_row2=$(curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"weekStart\":\"$sb_week\",\"panel\":\"installing\",\"jobId\":$sb_job}" \
+            http://localhost:3000/api/rows | jq -r '.rowId')
+          [ "$sb_row2" != "null" ] || { echo "Second send-back row not created" >&2; exit 1; }
+          status=$(ci_req -X PATCH -H "Content-Type: application/json" -d '{"backlog":true}' \
+            "http://localhost:3000/api/rows/$sb_row2/move")
+          [ "$status" = "200" ] || { echo "Expected 200 on second send-back, got $status: $(cat /tmp/ci-body.json)" >&2; exit 1; }
+          [ "$(jq -r '.backlogId' /tmp/ci-body.json)" = "$sb_backlog_id" ] || { echo "Second send-back created a different backlog id" >&2; exit 1; }
+          echo "Confirming the job still has exactly one backlog entry..."
+          curl -sf "http://localhost:3000/api/schedule?week=$sb_week" \
+            | jq -e "[.backlog[] | select(.jobId == $sb_job)] | length == 1" > /dev/null
+
+          echo "Sending an unknown row back should be 404..."
+          status=$(ci_req -X PATCH -H "Content-Type: application/json" -d '{"backlog":true}' \
+            "http://localhost:3000/api/rows/999999999/move")
+          [ "$status" = "404" ] || { echo "Expected 404 sending unknown row back, got $status" >&2; exit 1; }
+
+          echo "Cleaning up the send-back backlog entry..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/jobs/backlog/$sb_backlog_id")
+          [ "$status" = "204" ] || { echo "Expected 204 deleting send-back backlog entry, got $status" >&2; exit 1; }
+
+          echo "Send-back to backlog passed."
+
           echo "Backlog and finish-week smoke test passed."
 
           echo "Archiving the CI worker..."

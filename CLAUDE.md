@@ -117,6 +117,13 @@ schedule data or anything else with production-data risk.
   panel via a separate `backlogDrag` (row drag `dragState` untouched), and a
   native `<dialog>` per-job segmented control on "Finish week" that lands on the
   next week. Backlog + finish-week CI smoke steps added to `publish.yml`.
+  Also: the "Live schedule" title and worker legend now live in the left
+  sidebar under "To start" (`.board-side`; print still shows title + legend, only
+  the backlog panel is hidden) and dead vertical space above the rows was removed
+  — first row ~130px higher at 1920x1080. A scheduled row can be dragged back onto
+  "To start": it is the 4th mode of `PATCH /api/rows/:id/move` (`{backlog:true}`),
+  which deletes that one row + its own assignments/flags in one transaction and adds
+  the job to the backlog unless already there (UI confirms if workers are assigned).
   **Caveat:** the sidebar narrows the weeks column ~20% at 1920px (day column
   ~113px vs ~143px) — check chip legibility on the TV. Tested locally only
   against a node:sqlite shim (better-sqlite3 won't build on the Windows dev

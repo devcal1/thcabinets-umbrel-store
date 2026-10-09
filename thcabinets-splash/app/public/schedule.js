@@ -190,6 +190,8 @@
     for (const el of weeksContainer.querySelectorAll(".drop-before, .drop-after, .drop-active")) {
       el.classList.remove("drop-before", "drop-after", "drop-active");
     }
+    // The "To start" panel is a drop target for scheduled rows too (see below).
+    backlogEl.classList.remove("drop-active");
   }
 
   // Real rows only — the head row and alignPanels' blank padding rows carry no
@@ -316,7 +318,7 @@
     const grip = document.createElement("button");
     grip.type = "button";
     grip.className = "btn btn-ghost btn-icon drag-grip";
-    grip.title = "Drag to reorder";
+    grip.title = "Drag to reorder, or onto To start to unschedule";
     grip.draggable = true;
     grip.innerHTML = '<i class="ph ph-dots-six-vertical"></i>';
     grip.addEventListener("dragstart", (e) => {
@@ -838,6 +840,41 @@
 
     backlogEl.appendChild(backlogAddRowEl(draft));
   }
+
+  // Dragging a scheduled row onto "To start" unschedules it. Wired ONCE here on
+  // the persistent panel element, not in renderBacklog (which rebuilds the
+  // panel's children on every refresh). Only row drags (dragState) are accepted:
+  // a backlog-item drag (backlogDrag) is already in the list, so it's refused.
+  backlogEl.addEventListener("dragover", (e) => {
+    if (!dragState) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    backlogEl.classList.add("drop-active");
+  });
+  backlogEl.addEventListener("dragleave", (e) => {
+    if (!backlogEl.contains(e.relatedTarget)) backlogEl.classList.remove("drop-active");
+  });
+  backlogEl.addEventListener("drop", guarded(async (e) => {
+    if (!dragState) return;
+    e.preventDefault();
+    const rowId = dragState.rowId;
+    dragState = null;
+    clearDropMarkers();
+    // Deleting the row also drops its workers and day flags, so confirm first
+    // when there is anything on it. An empty row goes straight through.
+    const week = state.weeks[0];
+    const row = week && [...week.manufacturing, ...week.installing].find((r) => r.rowId === rowId);
+    if (row) {
+      const hasWorkers = DAY_KEYS.some((d) => row.cells[d].length > 0);
+      const hasFlags = DAY_KEYS.some((d) => row.flags && row.flags[d]);
+      if ((hasWorkers || hasFlags) &&
+          !confirm(`Send ${row.jobName} back to To start? The workers assigned to it this week will be cleared.`)) {
+        return;
+      }
+    }
+    await api(`/api/rows/${rowId}/move`, { method: "PATCH", body: JSON.stringify({ backlog: true }) });
+    await refresh();
+  }));
 
   // --- "Finish week" popup ---
   // Lists each job in the shown week once and asks where it is up to. The

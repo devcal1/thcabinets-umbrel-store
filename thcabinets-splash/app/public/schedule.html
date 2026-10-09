@@ -23,15 +23,17 @@
   </nav>
 
   <main id="main">
-    <div class="page-head">
-      <h1>Live schedule</h1>
-      <p class="text-muted">Manufacturing and installing jobs, Monday to Friday.</p>
-    </div>
-
-    <div id="legend" class="legend"></div>
-
     <div class="board">
-      <aside id="backlogPanel" class="backlog" aria-label="To start"></aside>
+      <!-- Left column: To start, then the page title and the worker legend. -->
+      <div class="board-side">
+        <aside id="backlogPanel" class="backlog" aria-label="To start"></aside>
+        <div class="page-head">
+          <h1>Live schedule</h1>
+          <p class="text-muted">Manufacturing and installing, Mon–Fri.</p>
+        </div>
+        <h3 class="legend-title">Workers</h3>
+        <div id="legend" class="legend"></div>
+      </div>
       <div id="weeksContainer">
         <div class="empty-schedule">Loading…</div>
       </div>

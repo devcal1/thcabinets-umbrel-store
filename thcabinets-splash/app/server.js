@@ -519,18 +519,41 @@ app.post("/api/rows", (req, res) => {
   res.status(201).json(buildScheduleRow(weekRow));
 });
 
-// Three move modes share this one endpoint deliberately. The schedule board is
+// Four move modes share this one endpoint deliberately. The schedule board is
 // ungated (PROXY_AUTH_WHITELIST in docker-compose.yml matches /api/rows/*), so
 // a brand-new path would have to be whitelisted or the workshop TV silently
 // 302s to the login. Extending a path already on the list avoids that trap.
 //   { direction: "up" | "down" }  — swap with the neighbour
 //   { toIndex: n }                — drag-and-drop reorder inside the panel
 //   { week: "prev" | "next" }     — move to the adjacent week, workers included
+//   { backlog: true }             — send the row back to the To start list
 app.patch("/api/rows/:id/move", (req, res) => {
   const id = Number(req.params.id);
   const row = getWeekRowOr404(id, res);
   if (!row) return;
   const { direction, toIndex, week } = req.body;
+
+  // --- send the row back to the To start list ---
+  if (req.body.backlog === true) {
+    // Same scoped cleanup as DELETE /api/rows/:id: day_flags has no FK
+    // enforcement, so child rows are removed here in the same transaction.
+    // Only this row id is touched. The job itself stays, and goes onto the
+    // backlog as a pointer, unless it is already waiting there.
+    const send = db.transaction(() => {
+      db.prepare("DELETE FROM day_flags WHERE week_row_id = ?").run(id);
+      db.prepare("DELETE FROM assignments WHERE week_row_id = ?").run(id);
+      db.prepare("DELETE FROM week_rows WHERE id = ?").run(id);
+      const existing = db.prepare("SELECT id FROM backlog WHERE job_id = ?").get(row.job_id);
+      if (existing) return { backlogId: existing.id, jobId: row.job_id };
+      const maxOrder = db.prepare("SELECT MAX(sort_order) AS m FROM backlog").get().m;
+      const info = db
+        .prepare("INSERT INTO backlog (job_id, sort_order) VALUES (?, ?)")
+        .run(row.job_id, (maxOrder ?? -1) + 1);
+      return { backlogId: info.lastInsertRowid, jobId: row.job_id };
+    });
+    res.json(send());
+    return;
+  }
 
   // --- move the row to the adjacent week ---
   if (week === "prev" || week === "next") {
@@ -579,7 +602,7 @@ app.patch("/api/rows/:id/move", (req, res) => {
 
   // --- swap with the row above or below ---
   if (direction !== "up" && direction !== "down") {
-    res.status(400).json({ error: "pass direction ('up'/'down'), toIndex, or week ('prev'/'next')" });
+    res.status(400).json({ error: "pass direction ('up'/'down'), toIndex, week ('prev'/'next'), or backlog (true)" });
     return;
   }
   const swapIdx = direction === "up" ? idx - 1 : idx + 1;

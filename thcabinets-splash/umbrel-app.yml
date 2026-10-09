@@ -26,7 +26,7 @@ releaseNotes: >-
   complete. Press Done and next week is set up for you: still-manufacturing
   jobs appear in next week's manufacturing list and ready-to-install jobs in
   its installing list, each with the same workers, and not-started jobs go
-  into a new "To start" list on the left of the board. Jobs in "To start" can
+  into a new "To start" list on the left of the board, next to the title and worker names, which makes room for more jobs on screen. Scheduled jobs can also be dragged back onto "To start". Jobs in "To start" can
   be added by hand and dragged into Manufacturing or Installing. The print
   and JPG exports are unchanged and don't include the "To start" list.
 dependencies: []
