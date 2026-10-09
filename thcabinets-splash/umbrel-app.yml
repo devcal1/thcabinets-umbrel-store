@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.8.0"
+version: "1.9.0"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,16 +20,15 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  The schedule board now shows one week at a time and uses the full width of
-  the screen, so the week you're looking at is bigger and easier to read from
-  across the workshop. Jobs can be dragged up and down by the grip handle to
-  reorder them, and two new arrow buttons move a job — along with everyone
-  assigned to it — to the previous or next week. Days with three or four
-  workers now show them two-by-two instead of in one tall stack, which keeps
-  rows short. Manufacturing and installing jobs line up on the same row
-  whenever they share a name, not only when they were added as the same job.
-  Also fixes the flag icon disappearing on days marked locked-in with the
-  client. The JPG export matches all of this.
+  Jobs no longer get left behind as the weeks go by. Each week now has a
+  "Finish week" button at the bottom: it lists every job in the week and asks
+  where it is up to - not started, still manufacturing, ready to install, or
+  complete. Press Done and next week is set up for you: still-manufacturing
+  jobs appear in next week's manufacturing list and ready-to-install jobs in
+  its installing list, each with the same workers, and not-started jobs go
+  into a new "To start" list on the left of the board. Jobs in "To start" can
+  be added by hand and dragged into Manufacturing or Installing. The print
+  and JPG exports are unchanged and don't include the "To start" list.
 dependencies: []
 path: ""
 defaultUsername: ""

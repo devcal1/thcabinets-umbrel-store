@@ -101,6 +101,26 @@ schedule data or anything else with production-data risk.
   at boot and never refresh (counts go stale after an upload, delete or inline
   tag edit), and `appendTag` updates the DOM field but not the cached
   `allPhotos` entry, so filtering after an inline edit matches stale tags.
+- Manifest **1.9.0, built on branch `feat/backlog` (worktree `../thc-backlog-wt`),
+  not yet merged/published** — "Finish week" + the "To start" backlog.
+  New additive table `backlog` (job_id UNIQUE, sort_order) in `db.js`; no existing
+  table touched. `GET /api/schedule` now also returns top-level `backlog`.
+  Routes: `POST /api/jobs/backlog`, `DELETE /api/jobs/backlog/:id`,
+  `POST /api/jobs/backlog/:id/place` (backlog item -> a week row, one
+  transaction) and `POST /api/rows/finish-week` (`{weekStart, results:[{jobId,
+  outcome}]}`, outcome `not_started|manufacturing|install|complete`; INSERT-only,
+  skips anything already present so it is safe to repeat, copies assignments
+  — never day_flags — from the same-panel source row, leaves the finished week
+  untouched). All new paths sit under `/api/jobs/*` or `/api/rows/*`, so the
+  auth whitelist is unchanged. Frontend: left "To start" sidebar (216px, hidden
+  in print, deliberately NOT in the JPG export), backlog items drag into either
+  panel via a separate `backlogDrag` (row drag `dragState` untouched), and a
+  native `<dialog>` per-job segmented control on "Finish week" that lands on the
+  next week. Backlog + finish-week CI smoke steps added to `publish.yml`.
+  **Caveat:** the sidebar narrows the weeks column ~20% at 1920px (day column
+  ~113px vs ~143px) — check chip legibility on the TV. Tested locally only
+  against a node:sqlite shim (better-sqlite3 won't build on the Windows dev
+  box); first real run of the new CI smoke steps is CI itself.
 - Manifest **1.8.0, published 2026-09-09** (`6f2418b`; schedule.js/css +
   server.js + CI; multi-arch `sha256:bd07b8bc…` on GHCR, `:latest` verified
   pointing at it; owner Update on the device pending at hand-off). The board

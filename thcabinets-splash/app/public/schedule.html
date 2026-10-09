@@ -30,12 +30,16 @@
 
     <div id="legend" class="legend"></div>
 
-    <div id="weeksContainer">
-      <div class="empty-schedule">Loading…</div>
+    <div class="board">
+      <aside id="backlogPanel" class="backlog" aria-label="To start"></aside>
+      <div id="weeksContainer">
+        <div class="empty-schedule">Loading…</div>
+      </div>
     </div>
   </main>
 
   <div id="popover" class="popover" hidden></div>
+  <dialog id="finishDialog" class="finish-dialog" aria-label="Finish week"></dialog>
 
   <script src="shared.js"></script>
   <script src="schedule.js"></script>

@@ -462,11 +462,18 @@ app.patch("/api/jobs/:id", (req, res) => {
 
 // --- Schedule ---
 
+const selectBacklog = db.prepare(
+  `SELECT b.id, b.job_id, j.name, j.notes
+   FROM backlog b JOIN jobs j ON j.id = b.job_id
+   ORDER BY b.sort_order ASC, b.id ASC`
+);
+
 app.get("/api/schedule", (req, res) => {
   const requested = typeof req.query.week === "string" && DATE_RE.test(req.query.week) ? req.query.week : formatDateUTC(new Date());
   const week1Start = mondayOf(requested);
   const week2Start = addDays(week1Start, 7);
-  res.json({ weeks: [buildWeek(week1Start), buildWeek(week2Start)] });
+  const backlog = selectBacklog.all().map((b) => ({ id: b.id, jobId: b.job_id, name: b.name, notes: b.notes }));
+  res.json({ weeks: [buildWeek(week1Start), buildWeek(week2Start)], backlog });
 });
 
 app.post("/api/rows", (req, res) => {
@@ -713,6 +720,202 @@ app.delete("/api/rows/:id/flags/:day", (req, res) => {
   }
   db.prepare("DELETE FROM day_flags WHERE week_row_id = ? AND day = ?").run(id, day);
   res.status(204).end();
+});
+
+// --- Backlog ('to start') ---
+// Jobs waiting to be scheduled. A backlog row is just a pointer to a jobs row;
+// placing it on a week creates a week_rows row and removes the backlog pointer.
+
+app.post("/api/jobs/backlog", (req, res) => {
+  const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+  if (!name) {
+    res.status(400).json({ error: "Name is required" });
+    return;
+  }
+  const add = db.transaction(() => {
+    const jobInfo = db.prepare("INSERT INTO jobs (name, notes) VALUES (?, '')").run(name);
+    const maxOrder = db.prepare("SELECT MAX(sort_order) AS m FROM backlog").get().m;
+    const backlogInfo = db
+      .prepare("INSERT INTO backlog (job_id, sort_order) VALUES (?, ?)")
+      .run(jobInfo.lastInsertRowid, (maxOrder ?? -1) + 1);
+    return { backlogId: backlogInfo.lastInsertRowid, jobId: jobInfo.lastInsertRowid };
+  });
+  const { backlogId, jobId } = add();
+  res.status(201).json({ id: backlogId, jobId, name, notes: "" });
+});
+
+app.delete("/api/jobs/backlog/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const row = Number.isInteger(id) ? db.prepare("SELECT id FROM backlog WHERE id = ?").get(id) : null;
+  if (!row) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  // Scoped to this one backlog row. The jobs row stays, so the job's name and
+  // notes survive and it can be placed again later.
+  db.prepare("DELETE FROM backlog WHERE id = ?").run(id);
+  res.status(204).end();
+});
+
+app.post("/api/jobs/backlog/:id/place", (req, res) => {
+  const id = Number(req.params.id);
+  const backlogRow = Number.isInteger(id)
+    ? db.prepare("SELECT * FROM backlog WHERE id = ?").get(id)
+    : null;
+  if (!backlogRow) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const { weekStart, panel, toIndex } = req.body;
+  if (typeof weekStart !== "string" || !DATE_RE.test(weekStart)) {
+    res.status(400).json({ error: "weekStart must be a YYYY-MM-DD date" });
+    return;
+  }
+  if (panel !== "manufacturing" && panel !== "installing") {
+    res.status(400).json({ error: "panel must be 'manufacturing' or 'installing'" });
+    return;
+  }
+  const hasIndex = toIndex !== undefined && toIndex !== null;
+  if (hasIndex && !Number.isInteger(toIndex)) {
+    res.status(400).json({ error: "toIndex must be an integer" });
+    return;
+  }
+  const snappedWeekStart = mondayOf(weekStart);
+
+  const newRowId = db.transaction(() => {
+    const maxOrder = db
+      .prepare("SELECT MAX(sort_order) AS m FROM week_rows WHERE week_start = ? AND panel = ?")
+      .get(snappedWeekStart, panel).m;
+    const info = db
+      .prepare("INSERT INTO week_rows (job_id, week_start, panel, sort_order) VALUES (?, ?, ?, ?)")
+      .run(backlogRow.job_id, snappedWeekStart, panel, (maxOrder ?? -1) + 1);
+    const newId = info.lastInsertRowid;
+
+    // Same renumbering approach as the toIndex branch of PATCH /api/rows/:id/move:
+    // the new row is already last, so splice it into the requested position and
+    // write the panel-week's sort_order back out. Presentation-only, as there.
+    if (hasIndex) {
+      const siblings = db
+        .prepare("SELECT id FROM week_rows WHERE week_start = ? AND panel = ? ORDER BY sort_order ASC, id ASC")
+        .all(snappedWeekStart, panel);
+      const ids = siblings.map((s) => s.id);
+      const to = Math.max(0, Math.min(toIndex, ids.length - 1));
+      ids.splice(to, 0, ids.splice(ids.indexOf(newId), 1)[0]);
+      const update = db.prepare("UPDATE week_rows SET sort_order = ? WHERE id = ?");
+      ids.forEach((rowId, i) => update.run(i, rowId));
+    }
+
+    db.prepare("DELETE FROM backlog WHERE id = ?").run(id);
+    return newId;
+  })();
+
+  const weekRow = selectRowWithJob.get(newRowId);
+  res.status(201).json(buildScheduleRow(weekRow));
+});
+
+// Finishing a week carries work forward into the next week. This route only
+// ever INSERTs: it never updates or deletes existing rows, and the finished
+// week itself is left untouched as a record. Every input is validated before
+// the transaction opens, so a bad request writes nothing.
+const FINISH_OUTCOMES = new Set(["not_started", "manufacturing", "install", "complete"]);
+
+app.post("/api/rows/finish-week", (req, res) => {
+  const { weekStart, results } = req.body;
+  if (typeof weekStart !== "string" || !DATE_RE.test(weekStart)) {
+    res.status(400).json({ error: "weekStart must be a YYYY-MM-DD date" });
+    return;
+  }
+  if (!Array.isArray(results) || results.length === 0 || results.length > 200) {
+    res.status(400).json({ error: "results must be a non-empty array of at most 200 items" });
+    return;
+  }
+  const seenJobIds = new Set();
+  for (const r of results) {
+    if (!r || typeof r !== "object" || !Number.isInteger(r.jobId)) {
+      res.status(400).json({ error: "each result needs an integer jobId" });
+      return;
+    }
+    if (!FINISH_OUTCOMES.has(r.outcome)) {
+      res.status(400).json({ error: "outcome must be one of " + [...FINISH_OUTCOMES].join(", ") });
+      return;
+    }
+    if (seenJobIds.has(r.jobId)) {
+      res.status(400).json({ error: `duplicate jobId ${r.jobId}` });
+      return;
+    }
+    if (!db.prepare("SELECT id FROM jobs WHERE id = ?").get(r.jobId)) {
+      res.status(400).json({ error: `job ${r.jobId} does not exist` });
+      return;
+    }
+    seenJobIds.add(r.jobId);
+  }
+
+  const sourceWeek = mondayOf(weekStart);
+  const nextWeek = addDays(sourceWeek, 7);
+  const created = [];
+  const skipped = [];
+  const completed = [];
+
+  db.transaction(() => {
+    for (const { jobId, outcome } of results) {
+      if (outcome === "complete") {
+        completed.push(jobId);
+        continue;
+      }
+
+      if (outcome === "not_started") {
+        if (db.prepare("SELECT id FROM backlog WHERE job_id = ?").get(jobId)) {
+          skipped.push({ jobId, outcome, reason: "already in backlog" });
+          continue;
+        }
+        const maxOrder = db.prepare("SELECT MAX(sort_order) AS m FROM backlog").get().m;
+        const info = db
+          .prepare("INSERT INTO backlog (job_id, sort_order) VALUES (?, ?)")
+          .run(jobId, (maxOrder ?? -1) + 1);
+        created.push({ jobId, outcome, backlogId: info.lastInsertRowid });
+        continue;
+      }
+
+      // 'manufacturing' or 'install' — both target a panel of the next week.
+      const panel = outcome === "manufacturing" ? "manufacturing" : "installing";
+      if (
+        db
+          .prepare("SELECT id FROM week_rows WHERE week_start = ? AND panel = ? AND job_id = ?")
+          .get(nextWeek, panel, jobId)
+      ) {
+        skipped.push({ jobId, outcome, reason: "already on next week in this panel" });
+        continue;
+      }
+      const maxOrder = db
+        .prepare("SELECT MAX(sort_order) AS m FROM week_rows WHERE week_start = ? AND panel = ?")
+        .get(nextWeek, panel).m;
+      const info = db
+        .prepare("INSERT INTO week_rows (job_id, week_start, panel, sort_order) VALUES (?, ?, ?, ?)")
+        .run(jobId, nextWeek, panel, (maxOrder ?? -1) + 1);
+      const newRowId = info.lastInsertRowid;
+
+      // Copy assignments only, from the job's lowest-id row in the SAME panel of
+      // the source week. day_flags are deliberately never copied: a
+      // "locked in with client" marker belongs to that week's booking.
+      const source = db
+        .prepare(
+          "SELECT id FROM week_rows WHERE week_start = ? AND panel = ? AND job_id = ? ORDER BY id ASC LIMIT 1"
+        )
+        .get(sourceWeek, panel, jobId);
+      if (source) {
+        const assignments = db
+          .prepare("SELECT day, worker_id FROM assignments WHERE week_row_id = ? ORDER BY id ASC")
+          .all(source.id);
+        const insertAssignment = db.prepare(
+          "INSERT INTO assignments (week_row_id, day, worker_id) VALUES (?, ?, ?)"
+        );
+        for (const a of assignments) insertAssignment.run(newRowId, a.day, a.worker_id);
+      }
+      created.push({ jobId, outcome, rowId: newRowId });
+    }
+  })();
+
+  res.json({ created, skipped, completed });
 });
 
 const PORT = process.env.PORT || 3000;

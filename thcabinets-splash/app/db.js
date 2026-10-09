@@ -70,6 +70,13 @@ db.exec(`
     UNIQUE(week_row_id, day)
   );
 
+  CREATE TABLE IF NOT EXISTS backlog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL UNIQUE REFERENCES jobs(id),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_week_rows_lookup ON week_rows(week_start, panel, sort_order);
   CREATE INDEX IF NOT EXISTS idx_assignments_row ON assignments(week_row_id, day);
   CREATE INDEX IF NOT EXISTS idx_day_flags_row ON day_flags(week_row_id);

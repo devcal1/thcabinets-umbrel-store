@@ -10,11 +10,14 @@
   const legendEl = document.getElementById("legend");
   const weekPicker = document.getElementById("weekPicker");
   const popover = document.getElementById("popover");
+  const finishDialog = document.getElementById("finishDialog");
+  const backlogEl = document.getElementById("backlogPanel");
 
   const state = {
     workers: [],
     jobs: [],
     weeks: [],
+    backlog: [],
     weekStart: mondayOf(localTodayStr()),
   };
   // The local date the board was last successfully rendered for — drives the
@@ -79,6 +82,7 @@
     // (renderWeeks, alignPanels, exportJpg) already loops over state.weeks,
     // so a one-element array needs no special-casing.
     state.weeks = data.weeks.slice(0, 1);
+    state.backlog = data.backlog || [];
   }
 
   // --- legend ---
@@ -178,10 +182,13 @@
   // across the Manufacturing/Installing divide (an installing row can carry
   // locked-in day flags that a manufacturing row is not allowed to have).
   let dragState = null;
+  // Separate from dragState: a "To start" item dragged into a panel. Set by the
+  // item grip's dragstart, cleared on dragend or drop. Any panel accepts it.
+  let backlogDrag = null;
 
   function clearDropMarkers() {
-    for (const el of weeksContainer.querySelectorAll(".drop-before, .drop-after")) {
-      el.classList.remove("drop-before", "drop-after");
+    for (const el of weeksContainer.querySelectorAll(".drop-before, .drop-after, .drop-active")) {
+      el.classList.remove("drop-before", "drop-after", "drop-active");
     }
   }
 
@@ -207,7 +214,40 @@
     return at === -1 ? ids.length : at + (after ? 1 : 0);
   }
 
-  function wireDropTarget(grid, panelKey) {
+  // Backlog drops only: the row under the pointer and which half of it, or null
+  // when the pointer is over no real row (the drop then appends).
+  function rowSlot(grid, e) {
+    const target = rowUnderPointer(grid, e);
+    if (!target) return null;
+    const rect = target.getBoundingClientRect();
+    return { target, after: e.clientY > rect.top + rect.height / 2 };
+  }
+
+  function wireDropTarget(grid, panelKey, weekStart) {
+    // Backlog items: nothing is lifted out of a backlog drag, so the index is
+    // simply the row's position in the panel (+1 when dropped below it).
+    grid.addEventListener("dragover", (e) => {
+      if (!backlogDrag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      clearDropMarkers();
+      const slot = rowSlot(grid, e);
+      if (slot) slot.target.classList.add(slot.after ? "drop-after" : "drop-before");
+      else grid.classList.add("drop-active");
+    });
+    grid.addEventListener("drop", guarded(async (e) => {
+      if (!backlogDrag) return;
+      e.preventDefault();
+      const slot = rowSlot(grid, e);
+      const body = { weekStart, panel: panelKey };
+      if (slot) body.toIndex = realRows(grid).indexOf(slot.target) + (slot.after ? 1 : 0);
+      const id = backlogDrag.id;
+      backlogDrag = null;
+      clearDropMarkers();
+      await api(`/api/jobs/backlog/${id}/place`, { method: "POST", body: JSON.stringify(body) });
+      await refresh();
+    }));
+
     grid.addEventListener("dragover", (e) => {
       if (!dragState || dragState.panelKey !== panelKey) return;
       const target = rowUnderPointer(grid, e);
@@ -592,7 +632,7 @@
       grid.appendChild(row ? rowEl(row, panelDef.key, todayIndex) : blankRowEl(todayIndex));
     }
 
-    wireDropTarget(grid, panelDef.key);
+    wireDropTarget(grid, panelDef.key, week.start);
     panel.appendChild(grid);
 
     const addRow = document.createElement("div");
@@ -672,6 +712,17 @@
       for (const panelDef of PANELS) cols.appendChild(panelEl(week, panelDef, aligned[panelDef.key]));
       section.appendChild(cols);
 
+      // Page chrome, not board content: hidden in print and not drawn into the JPG.
+      const finishBar = document.createElement("div");
+      finishBar.className = "finish-week-bar";
+      const finishBtn = document.createElement("button");
+      finishBtn.type = "button";
+      finishBtn.className = "btn btn-secondary";
+      finishBtn.innerHTML = '<i class="ph ph-flag-checkered"></i> Finish week';
+      finishBtn.addEventListener("click", () => openFinishWeek(week));
+      finishBar.appendChild(finishBtn);
+      section.appendChild(finishBar);
+
       weeksContainer.appendChild(section);
     }
 
@@ -686,6 +737,306 @@
     syncRowHeights();
   }
 
+  // --- "To start" backlog sidebar ---
+  // Jobs waiting to be scheduled. One line each; drag a grip into a panel of
+  // the shown week to place it (see wireDropTarget). Safe to call on its own.
+  function backlogItemEl(item) {
+    const el = document.createElement("div");
+    el.className = "backlog-item";
+
+    // Same drag-handle technique as the row grip: a dedicated draggable button,
+    // with the whole item as the drag image.
+    const grip = document.createElement("button");
+    grip.type = "button";
+    grip.className = "btn btn-ghost btn-icon drag-grip";
+    grip.title = "Drag into Manufacturing or Installing";
+    grip.draggable = true;
+    grip.innerHTML = '<i class="ph ph-dots-six-vertical"></i>';
+    grip.addEventListener("dragstart", (e) => {
+      backlogDrag = { id: item.id };
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox drops a drag that carries no data payload.
+      e.dataTransfer.setData("text/plain", String(item.id));
+      e.dataTransfer.setDragImage(el, 12, 12);
+      el.classList.add("dragging");
+    });
+    grip.addEventListener("dragend", () => {
+      backlogDrag = null;
+      el.classList.remove("dragging");
+      clearDropMarkers();
+    });
+    el.appendChild(grip);
+
+    const name = document.createElement("span");
+    name.className = "backlog-name";
+    name.textContent = item.name;
+    name.title = item.name;
+    el.appendChild(name);
+
+    el.appendChild(iconBtn("ph-x", "Remove from To start", guarded(async () => {
+      await api(`/api/jobs/backlog/${item.id}`, { method: "DELETE" });
+      await refresh();
+    })));
+    return el;
+  }
+
+  function backlogAddRowEl(draft) {
+    const addRow = document.createElement("div");
+    addRow.className = "add-row";
+    const input = document.createElement("input");
+    input.className = "input";
+    input.placeholder = "Add job…";
+    input.value = draft;
+    input.setAttribute("list", "jobNamesList");
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn btn-primary";
+    addBtn.textContent = "+ Add";
+    const submitAdd = guarded(async () => {
+      const name = input.value.trim();
+      if (!name) return;
+      await api("/api/jobs/backlog", { method: "POST", body: JSON.stringify({ name }) });
+      input.value = "";
+      await refresh();
+    });
+    addBtn.addEventListener("click", submitAdd);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitAdd();
+    });
+    addRow.appendChild(input);
+    addRow.appendChild(addBtn);
+    return addRow;
+  }
+
+  function renderBacklog() {
+    // Rebuilding wipes the add-row, so keep any half-typed name across a refresh.
+    const oldInput = backlogEl.querySelector(".add-row .input");
+    const draft = oldInput ? oldInput.value : "";
+    backlogEl.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "backlog-head";
+    const h3 = document.createElement("h3");
+    h3.textContent = "To start";
+    const count = document.createElement("span");
+    count.className = "backlog-count";
+    count.textContent = String(state.backlog.length);
+    head.appendChild(h3);
+    head.appendChild(count);
+    backlogEl.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "backlog-list";
+    if (!state.backlog.length) {
+      const empty = document.createElement("div");
+      empty.className = "backlog-empty";
+      empty.textContent = "Nothing waiting.";
+      list.appendChild(empty);
+    }
+    for (const item of state.backlog) list.appendChild(backlogItemEl(item));
+    backlogEl.appendChild(list);
+
+    backlogEl.appendChild(backlogAddRowEl(draft));
+  }
+
+  // --- "Finish week" popup ---
+  // Lists each job in the shown week once and asks where it is up to. The
+  // answers go to POST /api/rows/finish-week, which sets up the following week.
+  // The radio values ARE the server's outcome strings.
+  const FINISH_OUTCOMES = [
+    { value: "not_started", label: "Not started" },
+    { value: "manufacturing", label: "Still manufacturing" },
+    { value: "install", label: "Ready to install" },
+    { value: "complete", label: "Complete" },
+  ];
+  // True while the request is in flight: blocks a second Done, and stops Esc or
+  // a backdrop click from dismissing the popup mid-save.
+  let finishBusy = false;
+
+  // Backdrop click dismisses. Clicks inside the popup land on its children, so
+  // only a click whose target is the dialog itself is the backdrop.
+  finishDialog.addEventListener("click", (e) => {
+    if (e.target === finishDialog && !finishBusy) finishDialog.close();
+  });
+  finishDialog.addEventListener("cancel", (e) => {
+    if (finishBusy) e.preventDefault();
+  });
+
+  // One group per job name (alignKey), so a job sitting in both panels is one
+  // line. Manufacturing is walked first, so the order is manufacturing rows,
+  // then installing-only jobs.
+  function finishGroups(week) {
+    const groups = new Map();
+    for (const [panelKey, rows] of [["manufacturing", week.manufacturing], ["installing", week.installing]]) {
+      for (const row of rows) {
+        const key = alignKey(row);
+        if (!groups.has(key)) groups.set(key, { name: row.jobName, mfgJobId: null, instJobId: null });
+        const g = groups.get(key);
+        if (panelKey === "manufacturing" && g.mfgJobId === null) g.mfgJobId = row.jobId;
+        if (panelKey === "installing" && g.instJobId === null) g.instJobId = row.jobId;
+      }
+    }
+    return [...groups.values()];
+  }
+
+  // The jobId that carries a group's result. 'install' prefers the installing
+  // row; every other outcome prefers the manufacturing row. Each falls back to
+  // the other panel's row when it has none.
+  function finishJobId(g, outcome) {
+    const installFirst = outcome === "install";
+    const first = installFirst ? g.instJobId : g.mfgJobId;
+    const second = installFirst ? g.mfgJobId : g.instJobId;
+    return first !== null ? first : second;
+  }
+
+  function finishWhere(g) {
+    if (g.mfgJobId !== null && g.instJobId !== null) return "Manufacturing + Installing";
+    return g.mfgJobId !== null ? "Manufacturing" : "Installing";
+  }
+
+  // Plain-words summary of the POST response, shown in the toast after Done.
+  function finishSummary(res) {
+    const carried = res.created.filter((c) => c.outcome !== "not_started").length;
+    const toStart = res.created.length - carried;
+    const already = res.skipped.length;
+    const finished = res.completed.length;
+    const parts = [];
+    if (carried) parts.push(`${carried} carried over`);
+    if (toStart) parts.push(`${toStart} to To start`);
+    if (already) parts.push(`${already} already there`);
+    if (finished) parts.push(`${finished} finished`);
+    return parts.length ? `Next week set up: ${parts.join(", ")}` : "Next week set up: nothing to carry over";
+  }
+
+  // One line per job: name, where it sits now, and the segmented control.
+  function finishItemEl(g, index) {
+    const item = document.createElement("div");
+    item.className = "finish-item";
+
+    const info = document.createElement("div");
+    info.className = "finish-info";
+    const name = document.createElement("span");
+    name.className = "finish-name";
+    name.textContent = g.name;
+    const where = document.createElement("span");
+    where.className = "finish-where text-muted";
+    where.textContent = finishWhere(g);
+    info.append(name, where);
+
+    // Real radio inputs (visually hidden, still tabbable and arrow-key driven)
+    // inside labels styled as one joined control.
+    const seg = document.createElement("div");
+    seg.className = "finish-seg";
+    seg.setAttribute("role", "radiogroup");
+    seg.setAttribute("aria-label", `${g.name} status`);
+    for (const opt of FINISH_OUTCOMES) {
+      const label = document.createElement("label");
+      label.className = "finish-opt";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = `fw-${index}`;
+      input.value = opt.value;
+      // Installing-only jobs default to Complete; every other job starts unanswered.
+      if (opt.value === "complete" && g.mfgJobId === null) input.checked = true;
+      const text = document.createElement("span");
+      text.textContent = opt.label;
+      label.append(input, text);
+      seg.appendChild(label);
+    }
+
+    item.append(info, seg);
+    return item;
+  }
+
+  function openFinishWeek(week) {
+    const groups = finishGroups(week);
+    if (!groups.length) {
+      toast("No jobs in this week");
+      return;
+    }
+    finishDialog.innerHTML = "";
+
+    const body = document.createElement("div");
+    body.className = "finish-body";
+    const h2 = document.createElement("h2");
+    h2.textContent = `Finish week — ${weekRangeLabel(week)}`;
+    const help = document.createElement("p");
+    help.className = "finish-help text-muted";
+    help.textContent = "Say where each job is up to. This sets up next week.";
+    const list = document.createElement("div");
+    list.className = "finish-list";
+    const foot = document.createElement("div");
+    foot.className = "finish-foot";
+    const count = document.createElement("span");
+    count.className = "finish-count text-muted";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "btn btn-secondary";
+    cancel.textContent = "Cancel";
+    const done = document.createElement("button");
+    done.type = "button";
+    done.className = "btn btn-primary";
+    done.textContent = "Done";
+    foot.append(count, cancel, done);
+    body.append(h2, help, list, foot);
+    finishDialog.appendChild(body);
+
+    groups.forEach((g, i) => list.appendChild(finishItemEl(g, i)));
+
+    // Single source of truth for the footer: the counter, and whether Done and
+    // Cancel are usable (both locked while a save is in flight).
+    const updateProgress = () => {
+      let answered = 0;
+      for (const item of list.children) {
+        const picked = item.querySelector("input:checked");
+        if (picked) answered++;
+        item.classList.toggle("answered", !!picked);
+        for (const opt of item.querySelectorAll(".finish-opt")) {
+          opt.classList.toggle("selected", opt.querySelector("input").checked);
+        }
+      }
+      count.textContent = `${answered} of ${groups.length} answered`;
+      done.disabled = finishBusy || answered < groups.length;
+      cancel.disabled = finishBusy;
+    };
+    list.addEventListener("change", updateProgress);
+    cancel.addEventListener("click", () => finishDialog.close());
+    done.addEventListener("click", guarded(async () => {
+      // One entry per group. A jobId already used by an earlier group is dropped,
+      // since the server rejects duplicate jobIds in one request.
+      const seen = new Set();
+      const results = [];
+      groups.forEach((g, i) => {
+        const outcome = list.querySelector(`input[name="fw-${i}"]:checked`).value;
+        const jobId = finishJobId(g, outcome);
+        if (seen.has(jobId)) return;
+        seen.add(jobId);
+        results.push({ jobId, outcome });
+      });
+      finishBusy = true;
+      updateProgress();
+      try {
+        const res = await api("/api/rows/finish-week", {
+          method: "POST",
+          body: JSON.stringify({ weekStart: week.start, results }),
+        });
+        finishDialog.close();
+        toast(finishSummary(res));
+        // Land on the week that was just set up.
+        state.weekStart = addDays(week.start, 7);
+        await refresh();
+      } finally {
+        // On failure guarded() toasts the error; the answers stay put and Done
+        // comes back so the user can retry.
+        finishBusy = false;
+        updateProgress();
+      }
+    }));
+
+    updateProgress();
+    finishDialog.showModal();
+  }
+
   async function refresh() {
     // jobs included so a rename can't leave the add-job autocomplete offering
     // stale names (which silently creates duplicate jobs server-side).
@@ -693,6 +1044,7 @@
     renderedToday = localTodayStr();
     renderLegend();
     renderWeeks();
+    renderBacklog();
     weekPicker.value = state.weekStart;
   }
 
@@ -719,6 +1071,7 @@
 
   // --- JPG export: drawn straight from the loaded data, not a DOM screenshot ---
   function exportJpg() {
+    // The "To start" backlog sidebar is intentionally not drawn into the export.
     if (!state.weeks.length) {
       toast("Nothing to export yet");
       return;
