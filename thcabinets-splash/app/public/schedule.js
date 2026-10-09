@@ -12,12 +12,14 @@
   const popover = document.getElementById("popover");
   const finishDialog = document.getElementById("finishDialog");
   const backlogEl = document.getElementById("backlogPanel");
+  const completedEl = document.getElementById("completedPanel");
 
   const state = {
     workers: [],
     jobs: [],
     weeks: [],
     backlog: [],
+    completed: [],
     weekStart: mondayOf(localTodayStr()),
   };
   // The local date the board was last successfully rendered for — drives the
@@ -83,6 +85,7 @@
     // so a one-element array needs no special-casing.
     state.weeks = data.weeks.slice(0, 1);
     state.backlog = data.backlog || [];
+    state.completed = data.completed || [];
   }
 
   // --- legend ---
@@ -876,6 +879,88 @@
     await refresh();
   }));
 
+  // --- "Completed" sidebar ---
+  // Jobs marked Complete in Finish week, newest first. Display-only apart from
+  // Reopen, which sends the job back to To start (it leaves this list there).
+  // Like To start it is not drawn into the JPG export or the print.
+  // The collapsed state is a per-browser convenience (the TV laptop can reclaim
+  // the width), so storage failures are ignored.
+  const COMPLETED_COLLAPSED_KEY = "thc.completedCollapsed";
+  function completedCollapsed() {
+    try { return localStorage.getItem(COMPLETED_COLLAPSED_KEY) === "1"; } catch (e) { return false; }
+  }
+  function setCompletedCollapsed(on) {
+    try { localStorage.setItem(COMPLETED_COLLAPSED_KEY, on ? "1" : "0"); } catch (e) { /* ignore */ }
+    renderCompleted();
+  }
+
+  function completedItemEl(item) {
+    const el = document.createElement("div");
+    el.className = "backlog-item completed-item";
+
+    const text = document.createElement("div");
+    text.className = "completed-text";
+    const name = document.createElement("span");
+    name.className = "backlog-name";
+    name.textContent = item.name;
+    name.title = item.name;
+    const when = document.createElement("span");
+    when.className = "completed-when";
+    when.textContent = `Week of ${fmtAUShort(item.weekStart)}`;
+    text.appendChild(name);
+    text.appendChild(when);
+    el.appendChild(text);
+
+    el.appendChild(iconBtn("ph-arrow-counter-clockwise", "Reopen: send back to To start", guarded(async () => {
+      if (!confirm(`Reopen ${item.name}? It will move back to To start.`)) return;
+      await api("/api/jobs/backlog", { method: "POST", body: JSON.stringify({ jobId: item.jobId }) });
+      await refresh();
+    })));
+    return el;
+  }
+
+  function renderCompleted() {
+    const collapsed = completedCollapsed();
+    document.querySelector(".board").classList.toggle("completed-collapsed", collapsed);
+    completedEl.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "backlog-head";
+    const h3 = document.createElement("h3");
+    h3.textContent = "Completed";
+    const count = document.createElement("span");
+    count.className = "backlog-count";
+    count.textContent = String(state.completed.length);
+    const toggle = iconBtn(
+      collapsed ? "ph-caret-left" : "ph-caret-right",
+      collapsed ? "Show Completed" : "Hide Completed",
+      () => setCompletedCollapsed(!collapsed)
+    );
+    toggle.classList.add("completed-toggle");
+    if (collapsed) {
+      // A slim rail: just the toggle and the count.
+      head.appendChild(toggle);
+      head.appendChild(count);
+      completedEl.appendChild(head);
+      return;
+    }
+    head.appendChild(h3);
+    head.appendChild(count);
+    head.appendChild(toggle);
+    completedEl.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "backlog-list";
+    if (!state.completed.length) {
+      const empty = document.createElement("div");
+      empty.className = "backlog-empty";
+      empty.textContent = "Nothing finished yet.";
+      list.appendChild(empty);
+    }
+    for (const item of state.completed) list.appendChild(completedItemEl(item));
+    completedEl.appendChild(list);
+  }
+
   // --- "Finish week" popup ---
   // Lists each job in the shown week once and asks where it is up to. The
   // answers go to POST /api/rows/finish-week, which sets up the following week.
@@ -941,7 +1026,7 @@
     if (carried) parts.push(`${carried} carried over`);
     if (toStart) parts.push(`${toStart} to To start`);
     if (already) parts.push(`${already} already there`);
-    if (finished) parts.push(`${finished} finished`);
+    if (finished) parts.push(`${finished} moved to Completed`);
     return parts.length ? `Next week set up: ${parts.join(", ")}` : "Next week set up: nothing to carry over";
   }
 
@@ -1082,6 +1167,7 @@
     renderLegend();
     renderWeeks();
     renderBacklog();
+    renderCompleted();
     weekPicker.value = state.weekStart;
   }
 
@@ -1108,7 +1194,7 @@
 
   // --- JPG export: drawn straight from the loaded data, not a DOM screenshot ---
   function exportJpg() {
-    // The "To start" backlog sidebar is intentionally not drawn into the export.
+    // The "To start" and "Completed" sidebars are intentionally not drawn into the export.
     if (!state.weeks.length) {
       toast("Nothing to export yet");
       return;

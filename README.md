@@ -142,6 +142,19 @@ install/update.
     instead, leaving the original where it is.
   - **Remove** — the trash icon removes the row from that week (the job
     itself, and its other rows, are untouched).
+  - **To start** (left sidebar) — jobs waiting to be scheduled. Add one by
+    hand, drag it into Manufacturing or Installing, or drag a scheduled row
+    back onto it.
+  - **Finish week** — the button under the week lists each job and asks where
+    it is up to: not started, still manufacturing, ready to install, or
+    complete. Done sets up next week: the first three carry forward (workers
+    copied, not-started jobs to To start); *complete* jobs move to Completed.
+    Repeating it is safe — it never duplicates anything.
+  - **Completed** (right sidebar) — jobs marked complete, newest first with
+    the week they finished. **Reopen** sends one back to To start, and
+    scheduling a completed job again also removes it from the list. The arrow
+    button folds the list to a slim rail to give the weeks more room (remembered
+    per browser). To start and Completed are screen-only: not in print or JPG.
   - **Export PDF** — opens the browser print dialog (choose "Save as PDF").
     **Export JPG** — renders the current week to a downloadable image,
     drawn from the live data (not a screenshot).

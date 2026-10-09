@@ -4,7 +4,7 @@ name: TH Cabinets
 tagline: Company landing page, job photo search, and manufacturing/install schedule
 icon: https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 category: files
-version: "1.9.0"
+version: "1.10.0"
 port: 4090
 description: >-
   A landing page for TH Cabinets, with a showroom photo search tool for
@@ -20,7 +20,18 @@ support: https://github.com/devcal1/thcabinets-umbrel-store/issues
 gallery:
   - https://raw.githubusercontent.com/devcal1/thcabinets-umbrel-store/master/thcabinets-splash/icon.svg
 releaseNotes: >-
-  Jobs no longer get left behind as the weeks go by. Each week now has a
+  New "Completed" list on the right of the schedule board. When you press
+  "Finish week" and mark a job complete, it now moves into Completed (newest
+  first, with the week it was finished) instead of simply disappearing. A
+  Reopen button on each entry sends it back to "To start" if it was marked
+  complete by mistake, and scheduling a completed job again takes it out of
+  the list. The Completed list can be folded down to a thin strip with its
+  arrow button to give the weeks more room - the board remembers your choice on
+  each screen. Print and JPG exports don't include it.
+
+
+  Also in this update (from 1.9.0): jobs no longer get left behind as the
+  weeks go by. Each week now has a
   "Finish week" button at the bottom: it lists every job in the week and asks
   where it is up to - not started, still manufacturing, ready to install, or
   complete. Press Done and next week is set up for you: still-manufacturing

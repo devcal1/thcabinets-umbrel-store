@@ -425,11 +425,18 @@ jobs:
           curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
             | jq -e "[(.weeks[1].manufacturing + .weeks[1].installing)[] | select(.jobId == $idle_job)] | length == 0" > /dev/null
 
-          echo "Complete job should create nothing at all..."
+          echo "Complete job should create no rows and no backlog entry..."
           curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
             | jq -e "[(.weeks[1].manufacturing + .weeks[1].installing)[] | select(.jobId == $done_job)] | length == 0" > /dev/null
           curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
             | jq -e "[.backlog[] | select(.jobId == $done_job)] | length == 0" > /dev/null
+
+          echo "...but it should be in Completed, stamped with the finished week..."
+          curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
+            | jq -e ".completed[] | select(.jobId == $done_job and .weekStart == \"$fw_src\" and .name == \"CI Finish Done\")" > /dev/null
+          echo "...and the other outcomes must not be."
+          curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
+            | jq -e "[.completed[] | select(.jobId == $mfg_job or .jobId == $inst_job or .jobId == $idle_job)] | length == 0" > /dev/null
 
           echo "Source week must be unchanged..."
           [ "$(fw_src_state)" = "$src_before" ] || { echo "Source week changed after finish-week" >&2; exit 1; }
@@ -441,6 +448,9 @@ jobs:
           jq -e '(.created | length) == 0 and (.skipped | length) > 0' /tmp/ci-body.json > /dev/null \
             || { echo "Repeat finish-week should create nothing and skip everything: $(cat /tmp/ci-body.json)" >&2; exit 1; }
           [ "$(fw_counts)" = "$counts_first" ] || { echo "Repeat finish-week changed row or backlog counts" >&2; exit 1; }
+          echo "Repeating it must not duplicate the Completed entry..."
+          curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
+            | jq -e "[.completed[] | select(.jobId == $done_job)] | length == 1" > /dev/null
 
           echo "Bad finish-week bodies must be rejected and write nothing..."
           counts_before_bad=$(fw_counts)
@@ -462,6 +472,29 @@ jobs:
             | jq -r ".backlog[] | select(.jobId == $idle_job) | .id")
           status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/jobs/backlog/$idle_backlog_id")
           [ "$status" = "204" ] || { echo "Expected 204 deleting finish-week backlog entry, got $status" >&2; exit 1; }
+
+          echo "Reopening the completed job should send it to the backlog and out of Completed..."
+          status=$(ci_req -X POST -H "Content-Type: application/json" -d "{\"jobId\":$done_job}" \
+            http://localhost:3000/api/jobs/backlog)
+          [ "$status" = "201" ] || { echo "Expected 201 reopening completed job, got $status: $(cat /tmp/ci-body.json)" >&2; exit 1; }
+          reopen_backlog_id=$(jq -r '.id' /tmp/ci-body.json)
+          [ "$reopen_backlog_id" != "null" ] || { echo "No backlog id returned on reopen: $(cat /tmp/ci-body.json)" >&2; exit 1; }
+          curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
+            | jq -e "[.completed[] | select(.jobId == $done_job)] | length == 0" > /dev/null
+          curl -sf "http://localhost:3000/api/schedule?week=$fw_src" \
+            | jq -e ".backlog[] | select(.id == $reopen_backlog_id and .jobId == $done_job)" > /dev/null
+          echo "Reopening again should reuse the same backlog entry..."
+          status=$(ci_req -X POST -H "Content-Type: application/json" -d "{\"jobId\":$done_job}" \
+            http://localhost:3000/api/jobs/backlog)
+          [ "$status" = "200" ] || { echo "Expected 200 on repeat reopen, got $status" >&2; exit 1; }
+          [ "$(jq -r '.id' /tmp/ci-body.json)" = "$reopen_backlog_id" ] || { echo "Repeat reopen made a different backlog entry" >&2; exit 1; }
+          echo "Reopening an unknown job should be 404..."
+          status=$(ci_req -X POST -H "Content-Type: application/json" -d '{"jobId":999999999}' \
+            http://localhost:3000/api/jobs/backlog)
+          [ "$status" = "404" ] || { echo "Expected 404 reopening unknown job, got $status" >&2; exit 1; }
+          echo "Cleaning up the reopened backlog entry..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "http://localhost:3000/api/jobs/backlog/$reopen_backlog_id")
+          [ "$status" = "204" ] || { echo "Expected 204 deleting reopened backlog entry, got $status" >&2; exit 1; }
 
           echo "Cleaning up the CI rows in both test fortnights..."
           for week in "$fw_src" "$place_week"; do

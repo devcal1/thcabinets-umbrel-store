@@ -101,8 +101,27 @@ schedule data or anything else with production-data risk.
   at boot and never refresh (counts go stale after an upload, delete or inline
   tag edit), and `appendTag` updates the DOM field but not the cached
   `allPhotos` entry, so filtering after an inline edit matches stale tags.
-- Manifest **1.9.0, built on branch `feat/backlog` (worktree `../thc-backlog-wt`),
-  not yet merged/published** — "Finish week" + the "To start" backlog.
+- Manifest **1.10.0, built on branch `feat/completed` (worktree `../thc-backlog-wt`),
+  uncommitted/unpushed** — the right-hand **Completed** sidebar. Finish week's
+  `complete` outcome used to store nothing; it now writes the new additive
+  `completed` table (`job_id UNIQUE`, `week_start` = Monday of the finished week,
+  `completed_at`). `GET /api/schedule` returns top-level `completed` (newest
+  first, capped at 100). **No new API paths** (whitelist unchanged): Reopen is
+  `POST /api/jobs/backlog {jobId}` (the same route now also takes an existing
+  job; leaves Completed, joins To start), and `POST /api/rows` with a `jobId`
+  deletes that job's `completed` row in the same transaction (a scheduled job
+  can't also be Completed). Marking complete also deletes that job's `backlog`
+  pointer if it has one. Finish week stays idempotent (a repeat skips with
+  "already completed") and never touches `week_rows`/`assignments`/`day_flags`.
+  The panel is screen-only like To start (NOT in print or the JPG export) and
+  folds to a 52px rail (localStorage `thc.completedCollapsed`). **Caveat:** it
+  takes 184px+gap, so at 1920px a day cell is ~97px expanded vs ~110px
+  collapsed vs ~114px before it existed — crowded cells show more truncated
+  chip names ("Sh…"); check the TV and collapse it there if needed. CI smoke
+  steps added to `publish.yml`; verified locally against the node:sqlite shim.
+- Manifest **1.9.0, published 2026-10-09** (`37a5559`; CI run #7 green — owner's
+  on-device Update and the nested-whitelist check below still unconfirmed) —
+  "Finish week" + the "To start" backlog.
   New additive table `backlog` (job_id UNIQUE, sort_order) in `db.js`; no existing
   table touched. `GET /api/schedule` now also returns top-level `backlog`.
   Routes: `POST /api/jobs/backlog`, `DELETE /api/jobs/backlog/:id`,

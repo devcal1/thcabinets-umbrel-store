@@ -77,6 +77,16 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  -- Jobs marked Complete in "Finish week". Additive, like backlog: a pointer to
+  -- a jobs row plus the Monday of the week it was finished in. Nothing else
+  -- references it, so dropping it would lose only the Completed list.
+  CREATE TABLE IF NOT EXISTS completed (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL UNIQUE REFERENCES jobs(id),
+    week_start TEXT NOT NULL,
+    completed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_week_rows_lookup ON week_rows(week_start, panel, sort_order);
   CREATE INDEX IF NOT EXISTS idx_assignments_row ON assignments(week_row_id, day);
   CREATE INDEX IF NOT EXISTS idx_day_flags_row ON day_flags(week_row_id);

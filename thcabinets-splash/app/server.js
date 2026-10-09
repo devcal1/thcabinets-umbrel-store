@@ -468,12 +468,25 @@ const selectBacklog = db.prepare(
    ORDER BY b.sort_order ASC, b.id ASC`
 );
 
+// Newest first. Capped so the ungated, frequently-polled schedule response
+// can't grow without bound; older entries stay in the table.
+const COMPLETED_LIMIT = 100;
+const selectCompleted = db.prepare(
+  `SELECT c.id, c.job_id, c.week_start, j.name
+   FROM completed c JOIN jobs j ON j.id = c.job_id
+   ORDER BY c.completed_at DESC, c.id DESC
+   LIMIT ${COMPLETED_LIMIT}`
+);
+
 app.get("/api/schedule", (req, res) => {
   const requested = typeof req.query.week === "string" && DATE_RE.test(req.query.week) ? req.query.week : formatDateUTC(new Date());
   const week1Start = mondayOf(requested);
   const week2Start = addDays(week1Start, 7);
   const backlog = selectBacklog.all().map((b) => ({ id: b.id, jobId: b.job_id, name: b.name, notes: b.notes }));
-  res.json({ weeks: [buildWeek(week1Start), buildWeek(week2Start)], backlog });
+  const completed = selectCompleted
+    .all()
+    .map((c) => ({ id: c.id, jobId: c.job_id, name: c.name, weekStart: c.week_start }));
+  res.json({ weeks: [buildWeek(week1Start), buildWeek(week2Start)], backlog, completed });
 });
 
 app.post("/api/rows", (req, res) => {
@@ -508,14 +521,20 @@ app.post("/api/rows", (req, res) => {
     resolvedJobId = info.lastInsertRowid;
   }
 
-  const maxOrder = db
-    .prepare("SELECT MAX(sort_order) AS m FROM week_rows WHERE week_start = ? AND panel = ?")
-    .get(snappedWeekStart, panel).m;
-  const info = db
-    .prepare("INSERT INTO week_rows (job_id, week_start, panel, sort_order) VALUES (?, ?, ?, ?)")
-    .run(resolvedJobId, snappedWeekStart, panel, (maxOrder ?? -1) + 1);
+  const insertRow = db.transaction(() => {
+    const maxOrder = db
+      .prepare("SELECT MAX(sort_order) AS m FROM week_rows WHERE week_start = ? AND panel = ?")
+      .get(snappedWeekStart, panel).m;
+    const info = db
+      .prepare("INSERT INTO week_rows (job_id, week_start, panel, sort_order) VALUES (?, ?, ?, ?)")
+      .run(resolvedJobId, snappedWeekStart, panel, (maxOrder ?? -1) + 1);
+    // Scheduling a job again reopens it: it can't be both on the board and in
+    // the Completed list. Only the one pointer row is removed.
+    db.prepare("DELETE FROM completed WHERE job_id = ?").run(resolvedJobId);
+    return info.lastInsertRowid;
+  });
 
-  const weekRow = selectRowWithJob.get(info.lastInsertRowid);
+  const weekRow = selectRowWithJob.get(insertRow());
   res.status(201).json(buildScheduleRow(weekRow));
 });
 
@@ -750,6 +769,31 @@ app.delete("/api/rows/:id/flags/:day", (req, res) => {
 // placing it on a week creates a week_rows row and removes the backlog pointer.
 
 app.post("/api/jobs/backlog", (req, res) => {
+  // { jobId } sends an EXISTING job to To start (the Completed list's Reopen).
+  // It rides on this path rather than a new one because /api/jobs is already on
+  // the ungated whitelist. The job leaves Completed; only that pointer row goes.
+  if (req.body.jobId !== undefined) {
+    const jobId = req.body.jobId;
+    const job = Number.isInteger(jobId) ? db.prepare("SELECT id, name, notes FROM jobs WHERE id = ?").get(jobId) : null;
+    if (!job) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+    const reopen = db.transaction(() => {
+      db.prepare("DELETE FROM completed WHERE job_id = ?").run(job.id);
+      const existing = db.prepare("SELECT id FROM backlog WHERE job_id = ?").get(job.id);
+      if (existing) return { backlogId: existing.id, created: false };
+      const maxOrder = db.prepare("SELECT MAX(sort_order) AS m FROM backlog").get().m;
+      const info = db
+        .prepare("INSERT INTO backlog (job_id, sort_order) VALUES (?, ?)")
+        .run(job.id, (maxOrder ?? -1) + 1);
+      return { backlogId: info.lastInsertRowid, created: true };
+    });
+    const { backlogId, created } = reopen();
+    res.status(created ? 201 : 200).json({ id: backlogId, jobId: job.id, name: job.name, notes: job.notes });
+    return;
+  }
+
   const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
   if (!name) {
     res.status(400).json({ error: "Name is required" });
@@ -836,10 +880,12 @@ app.post("/api/jobs/backlog/:id/place", (req, res) => {
   res.status(201).json(buildScheduleRow(weekRow));
 });
 
-// Finishing a week carries work forward into the next week. This route only
-// ever INSERTs: it never updates or deletes existing rows, and the finished
-// week itself is left untouched as a record. Every input is validated before
-// the transaction opens, so a bad request writes nothing.
+// Finishing a week carries work forward into the next week. It never updates
+// or deletes schedule rows (week_rows/assignments/day_flags), and the finished
+// week itself is left untouched as a record. 'complete' records the job in the
+// completed table; the only delete is that job's backlog pointer, if any.
+// Every input is validated before the transaction opens, so a bad request
+// writes nothing.
 const FINISH_OUTCOMES = new Set(["not_started", "manufacturing", "install", "complete"]);
 
 app.post("/api/rows/finish-week", (req, res) => {
@@ -882,6 +928,14 @@ app.post("/api/rows/finish-week", (req, res) => {
   db.transaction(() => {
     for (const { jobId, outcome } of results) {
       if (outcome === "complete") {
+        if (db.prepare("SELECT id FROM completed WHERE job_id = ?").get(jobId)) {
+          skipped.push({ jobId, outcome, reason: "already completed" });
+          continue;
+        }
+        db.prepare("INSERT INTO completed (job_id, week_start) VALUES (?, ?)").run(jobId, sourceWeek);
+        // A finished job isn't waiting to start. Removes only this job's
+        // pointer row, if it has one; the job and its past weeks stay put.
+        db.prepare("DELETE FROM backlog WHERE job_id = ?").run(jobId);
         completed.push(jobId);
         continue;
       }
